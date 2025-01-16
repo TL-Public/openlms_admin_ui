@@ -3,32 +3,33 @@
 	import InputField from '$lib/components/InputField.svelte';
 	import ReapLogo from '$lib/svgComponents/ReapLogo.svelte';
 	import ReapLogoMobile from '$lib/svgComponents/ReapLogoMobile.svelte';
+	import EduReachLogo from '$lib/svgComponents/EduReach-Logo.svelte';
+	import EduReachHalfLogo from '$lib/svgComponents/EduReach-half-Logo.svelte';
 	import CheckBox from '$lib/components/CheckBox.svelte';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { tokenExpired } from '/src/stores/store';
 
 	export let form;
-    // extract the form details
+	// extract the form details
 	let error = form?.error;
 	let formLoginDetails = form?.loginDetails;
 	let showPassword = false;
 
-
 	let formObject = {
 		email: formLoginDetails?.email ?? '',
 		password: formLoginDetails?.password ?? ''
-        // rememberMe: formLoginDetails?.rememberMe ?? false
+		// rememberMe: formLoginDetails?.rememberMe ?? false
 	};
 
 	function handleFormEnhance({ formData, action, cancel }) {
 		return async ({ result, update }) => {
 			await result;
-            // `result` is an `ActionResult` object
+			// `result` is an `ActionResult` object
 
 			if (!Object.keys(result?.data)?.includes('error')) {
 				goto(`/courses`);
-                // tokenExpired.set(true);
+				// tokenExpired.set(true);
 			} else {
 				error = result?.data?.error;
 			}
@@ -59,12 +60,14 @@
 		<LineDrawing />
 	</div>
 	<!-- Login Forms -->
-	<div class="flex flex-col justify-center items-center lg:justify-start flex-1 px-6 lg:px-36 py-12 lg:py-24 bg-offwhite min-h-screen lg:min-h-0">
+	<div
+		class="flex flex-col justify-center items-center lg:justify-start flex-1 px-6 lg:px-36 py-12 lg:py-24 bg-offwhite min-h-screen lg:min-h-0"
+	>
 		<div class="w-full max-w-md lg:max-w-none">
 			<div class="mb-4">
 				<span class="sr-only">Reap Logo</span>
 				<h2>
-					<ReapLogo addClass="w-40 h-28 lg:w-56 lg:h-40 mx-auto" />
+					<EduReachLogo addClass="w-40 h-28 lg:w-56 lg:h-40 mx-auto" />
 				</h2>
 				<h2 class="text-2xl text-center text-primary font-bold leading-[3rem]">Login</h2>
 			</div>
@@ -84,27 +87,27 @@
 
 				<div class="mb-2">
 					<InputField
-					label="Password"
-					placeholder="Enter your password"
-					type={showPassword ? 'text' : 'password'}
-					bind:value={formObject.password}
-					name="password"
-					required
-					autocomplete="password"
-				>
-					<!-- Icon Slot -->
-					<button
-						type="button"
-						class="flex items-center justify-center text-gray-500 hover:text-gray-700 focus:outline-none"
-						on:click={toggleVisibility}
+						label="Password"
+						placeholder="Enter your password"
+						type={showPassword ? 'text' : 'password'}
+						bind:value={formObject.password}
+						name="password"
+						required
+						autocomplete="password"
 					>
-						{#if showPassword}
-							<span class="material-icons text-lg">visibility</span>
-						{:else}
-							<span class="material-icons text-lg">visibility_off</span>
-						{/if}
-					</button>
-				</InputField>
+						<!-- Icon Slot -->
+						<button
+							type="button"
+							class="flex items-center justify-center text-gray-500 hover:text-gray-700 focus:outline-none"
+							on:click={toggleVisibility}
+						>
+							{#if showPassword}
+								<span class="material-icons text-lg">visibility</span>
+							{:else}
+								<span class="material-icons text-lg">visibility_off</span>
+							{/if}
+						</button>
+					</InputField>
 				</div>
 				<div class="flex justify-between mb-4 text-sm">
 					<!-- <CheckBox

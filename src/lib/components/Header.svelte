@@ -4,6 +4,8 @@
 	import ReapLogoMobile from '$lib/svgComponents/ReapLogoMobile.svelte';
 	import MenuSmallScreen from '$lib/menuForMobile/MenuSmallScreen.svelte';
 	import { goto } from '$app/navigation';
+	import EduReachLogo from '$lib/svgComponents/EduReach-Logo.svelte';
+	import EduReachHalfLogo from '$lib/svgComponents/EduReach-half-Logo.svelte';
 
 	let dispatch = createEventDispatcher();
 	let loggedIn = true;
@@ -28,16 +30,16 @@
 </script>
 
 <header
-	class=" h-16 sticky top-0 sm:h-20 py-2 px-4 flex justify-between lg:py-2 lg:px-20 items-center bg-ivory text-darkGray shadow-md w-full z-50 "
+	class=" h-16 sticky top-0 sm:h-20 py-2 px-4 flex justify-between lg:py-2 lg:px-20 items-center bg-ivory text-darkGray shadow-md w-full z-50"
 >
 	<div on:click={handleLogoClick}>
 		<a href="/">
 			<span class="sr-only">Reap Logo</span>
 			<div class="hidden sm:block">
-				<ReapLogo />
+				<EduReachLogo />
 			</div>
 			<div class="sm:hidden">
-				<ReapLogoMobile />
+				<EduReachHalfLogo />
 			</div>
 		</a>
 	</div>
