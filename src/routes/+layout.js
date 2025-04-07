@@ -8,6 +8,8 @@ export async function load({ fetch, data, url }) {
 		try {
 			res = await fetch(`/apis/courses`);
 
+			console.log(res, 'res in course list');
+
 			if (!res.ok || res.status != 200) {
 				const { errorMsg, redirectUser } = getErrorMessage({
 					status: res?.status,
@@ -83,7 +85,7 @@ export async function load({ fetch, data, url }) {
 	const fetchStateList = async () => {
 		let res;
 		try {
-			const res = await fetch(` /apis/states`);
+			const res = await fetch(`/apis/states`);
 
 			if (!res.ok || res.status != 200) {
 				const { errorMsg, redirectUser } = getErrorMessage({

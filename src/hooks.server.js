@@ -4,6 +4,8 @@ import { normalizeRoute } from '$lib/utils/helper.js'; // Import route normalize
 
 export async function handle({ event, resolve }) {
 
+	console.log('in hooks.server.js')
+
 	const authToken = event.cookies.get('authToken');
 	const role = event.cookies.get('role');
 	const name = event.cookies.get('name');

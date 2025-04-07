@@ -18,7 +18,10 @@ export async function GET({ request, fetch, cookies }) {
 			}
 		});
 
+		console.log('res', res)
+
 		if (!res?.ok) {
+			// console.log(await res.text())
 			return json({ status: res.status, error: 'Failed to fetch data' }, { status: res.status });
 		}
 
