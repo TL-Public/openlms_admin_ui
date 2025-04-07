@@ -1,7 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { message } from '/src/routes/officialTestimonials/store.js';
 	import InputField from '$lib/components/InputField.svelte';
 	// import BreadCrumbs from '$lib/components/BreadCrumbs.svelte';
@@ -10,6 +10,10 @@
 	import ReviewForm from '$lib/components/ReviewForm.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import MultiStepProgressComponent from '$lib/components/MultiStepProgressComponent.svelte';
+	import { handleRedirection } from '$lib/utils/helper.js';
+	import { page } from '$app/stores';
+	import {showLoadingSpinner} from '/src/routes/store.js'
+
 
 	export let route;
 	export let formObject = {
@@ -20,8 +24,8 @@
 		designationHi: '',
 		testimonialTextHi: '',
 		uuid: '',
-		image:null,
-		videoUrl:'',
+		image: null,
+		videoUrl: '',
 		method: '',
 		type: 'text' // Default to 'text', can be 'text' or 'video'
 	};
@@ -35,22 +39,33 @@
 	let imageUploadInputRef;
 	const maxFileSizeInIntegers = 1;
 	const maxFileSize = 0.5 * 1024 * 1024;
+	const url = $page.url;
 	let errorMessage = '';
-	let isSubmitting=false
-	let imageUrl=''
-	let steps=[{number:1, text:'Details'},{number:2, text:'Review'}]
-	let currentStep = 1
+	let isSubmitting = false;
+	let imageUrl = '';
+	let steps = [
+		{ number: 1, text: 'Details' },
+		{ number: 2, text: 'Review' }
+	];
+	let currentStep = 1;
 
 	let testimonialTypes = [
 		{ value: 'text', label: 'Text' },
 		{ value: 'video', label: 'Video' }
 	];
 
+	
+	$: if (isSubmitting === true){
+		showLoadingSpinner.set(true)
+	} else {
+		showLoadingSpinner.set(false)
+	}
+
 	onMount(() => {
 		if (route.includes('edit')) {
 			method = 'PUT';
 			if (typeof formObject?.image == 'string') {
-				imageUrl= formObject?.image;
+				imageUrl = formObject?.image;
 			}
 		} else {
 			method = 'POST';
@@ -61,25 +76,19 @@
 				displayImage = formObject?.image;
 				formObject = formObject;
 			}
-		 if(formObject?.videoUrl){
-			formObject.type='video'
-		 } else{
-			formObject.type='text'
-		 }
-		
+			if (formObject?.videoUrl) {
+				formObject.type = 'video';
+			} else {
+				formObject.type = 'text';
+			}
 		}
-	}
+	});
 
+	// --------------------- Functions to handle text/video selection --------------------
 
-
-);
-
-
-// --------------------- Functions to handle text/video selection --------------------
-
-		function handleTypeChange(event) {
-			if(method==='PUT') return
-			const newType = event.target.value;
+	function handleTypeChange(event) {
+		if (method === 'PUT') return;
+		const newType = event.target.value;
 
 		// Clear fields depending on the type
 		if (newType === 'text') {
@@ -99,20 +108,20 @@
 		// This is done becuase enhance function is being triggered when the pdf is opened in another window
 		if (search == '?/review') {
 			saved = !saved;
-			currentStep=2		
+			currentStep = 2;
 		}
 
 		if (search == '?/final') {
-			isSubmitting=true;
+			isSubmitting = true;
 		}
 
 		Object.keys(formObject)?.forEach((key) => {
 			formData.set(key, formObject[key]);
 		});
 
-		if (typeof imageUrl == 'string' && method ==='PUT') {
-			formData.set('imageUrl', imageUrl);	
-			}
+		if (typeof imageUrl == 'string' && method === 'PUT') {
+			formData.set('imageUrl', imageUrl);
+		}
 
 		formData.set('method', method);
 
@@ -128,16 +137,18 @@
 		// If there are validation errors, cancel the submission and handle errors
 		if (Object.keys(validationErrors)?.length > 0) {
 			saved = false;
-			cancel()
+			isSubmitting=false
+			cancel();
 			return;
 		}
 
 		return async ({ result, update }) => {
 			await result;
 			// `result` is an `ActionResult` object
+
 			if (search == '?/final') {
-				isSubmitting=true;
-				if (!Object.keys(result?.data)?.includes('error')) {
+				isSubmitting = true;
+				if (result.type == 'success') {
 					if (method === 'POST') {
 						goto(`/officialTestimonials`, { invalidateAll: true });
 						message.set(`Successfully added testimonial of '${formObject?.nameEn}'.`);
@@ -146,12 +157,20 @@
 						goto(`/officialTestimonials`, { invalidateAll: true });
 						message.set(`Successfully edited testimonial of '${formObject?.nameEn}'.`);
 					}
-				} else {
-					isSubmitting=false;
+				}
+
+				if (result.type == 'failure') {
+					isSubmitting = false;
+
 					formObject = formObject;
 					creationError = true;
+
 					if (result?.data?.error) {
 						errorMessage = result?.data?.error;
+						if (result?.status === 401) {
+							//only 401 is handled in the component. Other errors are shown as it comes from page.server.js.
+							handleRedirection(result.status, url.pathname, url.search);
+						}
 					}
 				}
 			}
@@ -187,9 +206,13 @@
 
 	function handlePrevious() {
 		saved = false;
-		currentStep=1
+		currentStep = 1;
 		formObject = formObject;
 	}
+
+	onDestroy(()=>{
+		showLoadingSpinner.set(false)
+	})
 </script>
 
 <div class=" text-darkGray">
@@ -198,11 +221,9 @@
 			<SubmissionErrorMessage {errorMessage} />
 		</div>
 	{/if}
-	
+
 	<div class="w-full max-w-80 mx-auto">
-		<MultiStepProgressComponent 
-		{steps}
-		{currentStep}/>
+		<MultiStepProgressComponent {steps} {currentStep} />
 	</div>
 
 	<form
@@ -225,20 +246,15 @@
 					<div class=" flex flex-col items-center gap-2">
 						<img
 							class="w-32 h-32 rounded-lg border object-cover"
-							src={
-								displayImage
-									? displayImage.startsWith('blob:')
-										? displayImage // Blob URL doesn't need a timestamp
-										: `${displayImage}?t=${Date.now()}` // Append timestamp for external URLs
-									: '/image-preview-icon.jpg'
-							}
+							src={displayImage
+								? displayImage.startsWith('blob:')
+									? displayImage // Blob URL doesn't need a timestamp
+									: `${displayImage}?t=${Date.now()}` // Append timestamp for external URLs
+								: '/image-preview-icon.jpg'}
 							alt="uploaded user profile"
 						/>
 
-						<Button
-							btnType="secondary"
-							type="button"
-							on:click={handelUploadImage}
+						<Button btnType="secondary" type="button" on:click={handelUploadImage}
 							><span class="material-icons-outlined text-center">upload_file</span>Display picture</Button
 						>
 						<input
@@ -247,6 +263,7 @@
 							bind:this={imageUploadInputRef}
 							on:change={handleImageChange}
 							class="hidden"
+							accept=".jpg, .jpeg, .png"
 						/>
 						{#if sizeErrorMessage}
 							<p class=" text-xs text-center text-red-500">{sizeErrorMessage}</p>
@@ -264,18 +281,18 @@
 								<input
 									type="radio"
 									name="testimonialType"
-									value={value}
+									{value}
 									bind:group={formObject.type}
 									on:change={handleTypeChange}
 									class="form-radio text-blue-500"
-									disabled={method==='PUT'}
+									disabled={method === 'PUT'}
 								/>
 								<span class="ml-2 text-xs sm:text-sm">{label}</span>
 							</label>
 						{/each}
 					</div>
 				</div>
-			
+
 				{#if formObject.type === 'video'}
 					<div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-4 gap-2 lg:gap-20">
 						<InputField
@@ -290,7 +307,7 @@
 				{/if}
 
 				<hr class="my-4 horizontal-line" />
-			
+
 				<h3 class=" font-semibold">Language wise testimonial details</h3>
 				<h4 class=" text-xs mb-4 text-gray-400">
 					Language wise details are necessary for multi-lingual support
@@ -322,15 +339,15 @@
 					</div>
 				</div>
 				{#if formObject.type === 'text'}
-				<div class="mb-4 lg:mb-4 w-full">
-					<TextDescriptionField
-						label={'Testimonial text'}
-						placeholder={'Enter testimonial text'}
-						name={'testimonialTextEn'}
-						bind:value={formObject.testimonialTextEn}
-						required
-					/>
-				</div>
+					<div class="mb-4 lg:mb-4 w-full">
+						<TextDescriptionField
+							label={'Testimonial text'}
+							placeholder={'Enter testimonial text'}
+							name={'testimonialTextEn'}
+							bind:value={formObject.testimonialTextEn}
+							required
+						/>
+					</div>
 				{/if}
 
 				<hr class="my-4 horizontal-line" />
@@ -356,14 +373,14 @@
 					</div>
 				</div>
 				{#if formObject.type === 'text'}
-				<div class="mb-4 lg:mb-4 w-full">
-					<TextDescriptionField
-						label={'Testimonial text'}
-						placeholder={'Enter testimonial text'}
-						name={'testimonialTextEn'}
-						bind:value={formObject.testimonialTextHi}
-					/>
-				</div>
+					<div class="mb-4 lg:mb-4 w-full">
+						<TextDescriptionField
+							label={'Testimonial text'}
+							placeholder={'Enter testimonial text'}
+							name={'testimonialTextEn'}
+							bind:value={formObject.testimonialTextHi}
+						/>
+					</div>
 				{/if}
 			</div>
 		{:else}
@@ -376,33 +393,36 @@
 						<div class="w-fit md:w-1/3 lg:w-1/4 flex-shrink-0">
 							<img
 								class="w-full h-48 object-contain object-center rounded-lg shadow-sm"
-								src={
-									displayImage
-										? displayImage.startsWith('blob:')
-											? displayImage // Blob URL doesn't need a timestamp
-											: `${displayImage}?t=${Date.now()}` // Append timestamp for external URLs
-										: '/image-preview-icon.jpg'
-								}
+								src={displayImage
+									? displayImage.startsWith('blob:')
+										? displayImage // Blob URL doesn't need a timestamp
+										: `${displayImage}?t=${Date.now()}` // Append timestamp for external URLs
+									: '/image-preview-icon.jpg'}
 								alt="Display thumbnail"
 							/>
 						</div>
 						<div class="flex-grow">
 							<!-- <h3 class=" font-medium mb-4 mt-2">Language-wise testimonial Details</h3> -->
-							{#if formObject.type==='video'}
-							<!-- <p class="text-sm text-blue-600 hover:underline mb-2">
+							{#if formObject.type === 'video'}
+								<!-- <p class="text-sm text-blue-600 hover:underline mb-2">
 								<a href={formObject?.videoUrl?? '#'} target="_blank" rel="noopener noreferrer">
 									{formObject?.videoUrl?? '-'}
 								</a>
 							</p> -->
-							<div class="flex items-center space-x-2">
-								<span class="label">Video URL:</span>
-								<p class="text-sm text-blue-600 hover:underline break-words ">
-								  <a href={formObject.videoUrl ?? '#'} target="_blank" rel="noopener noreferrer" class="break-all">
-									{formObject.videoUrl ?? '-'}
-								  </a>
-								</p>
-							  </div>
-							<hr class="my-4 horizontal-line" />
+								<div class="flex items-center space-x-2">
+									<span class="label">Video URL:</span>
+									<p class="text-sm text-blue-600 hover:underline break-words">
+										<a
+											href={formObject.videoUrl ?? '#'}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="break-all"
+										>
+											{formObject.videoUrl ?? '-'}
+										</a>
+									</p>
+								</div>
+								<hr class="my-4 horizontal-line" />
 							{/if}
 
 							<!-- English Details -->
@@ -411,8 +431,8 @@
 								<div class="space-y-1">
 									<p class="font-medium">{formObject?.nameEn ?? '-'}</p>
 									<p class="text-sm text-gray-600">{formObject?.designationEn ?? '-'}</p>
-									{#if formObject.type ==='text'}
-									<p class="text-sm text-gray-600">{formObject?.testimonialTextEn ?? '-'}</p>
+									{#if formObject.type === 'text'}
+										<p class="text-sm text-gray-600">{formObject?.testimonialTextEn ?? '-'}</p>
 									{/if}
 								</div>
 							</div>
@@ -428,12 +448,12 @@
 									<p class="text-sm text-gray-600">
 										{formObject?.designationHi ? formObject?.designationHi : 'Designation: -'}
 									</p>
-									{#if formObject.type ==='text'}
-									<p class="text-sm text-gray-600">
-										{formObject?.testimonialTextHi
-											? formObject?.testimonialTextHi
-											: 'Testimonial Text: -'}
-									</p>
+									{#if formObject.type === 'text'}
+										<p class="text-sm text-gray-600">
+											{formObject?.testimonialTextHi
+												? formObject?.testimonialTextHi
+												: 'Testimonial Text: -'}
+										</p>
 									{/if}
 								</div>
 							</div>
@@ -445,21 +465,21 @@
 
 		<div class="flex justify-end gap-4 flex-wrap">
 			{#if saved}
-			<Button
-			type="button"
-			btnType="secondary"
-			customClass={'inline-block w-full bp-420px:w-fit'}
-			disabled={isSubmitting}
-			on:click={handlePrevious}>Edit</Button
-		>
+				<Button
+					type="button"
+					btnType="secondary"
+					customClass={'inline-block w-full bp-420px:w-fit'}
+					disabled={isSubmitting}
+					on:click={handlePrevious}>Edit</Button
+				>
 			{:else}
-			<Button
-			type="button"
-			btnType="secondary"
-			customClass={'inline-block w-full bp-420px:w-fit flex justify-center'}
-			disabled={isSubmitting}
-			on:click={handleGoBack}>Cancel</Button
-		>
+				<Button
+					type="button"
+					btnType="secondary"
+					customClass={'inline-block w-full bp-420px:w-fit flex justify-center'}
+					disabled={isSubmitting}
+					on:click={handleGoBack}>Cancel</Button
+				>
 			{/if}
 			<Button
 				btnType="primary"

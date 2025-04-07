@@ -1,9 +1,10 @@
 import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
 
 export async function GET() {
 	try {
 		const res = await fetch(
-			`http://reap-demo-env1.ap-south-1.elasticbeanstalk.com/reap/api/v1/rsetis`
+			`${BASE_URL}/apis/v1/rsetis`
 		);
 		if (!res.ok) {
 			throw new Error('Failed to fetch data');

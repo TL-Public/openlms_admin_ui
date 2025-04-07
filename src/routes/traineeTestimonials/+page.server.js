@@ -1,4 +1,9 @@
-import { reapUrls, urlPath } from '$config/constants';
+import { BASE_URL } from '$lib/config';
+import { fail } from '@sveltejs/kit';
+import { getErrorMessage } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
+
+
 let modifiedFormdata;
 let originalFormData;
 let id = '';
@@ -54,41 +59,68 @@ export const actions = {
 		const authToken = cookies.get('authToken');
 
 		const dataToSend = JSON.stringify(data);
+
 		const headers = {
 			'Content-Type': 'application/json',
-			// Add token if required for authentication
-
 			Authorization: `Bearer ${authToken}`
 		};
-		if (method === 'POST') {
-			const response = await fetch(
-				`${reapUrls.adminTestURL}${urlPath.testPath}/v1/traineetestimonials`,
-				{
+		let response;
+		try {
+			if (method === 'POST') {
+				response = await fetch(`${BASE_URL}/apis/v1/traineetestimonials`, {
 					method: 'POST',
 					body: dataToSend,
 					headers
-				}
-			);
-			if (!response.ok || !response.status == 201) {
-				return { error: 'Failed to submit form. Please try again!', data: originalFormData };
+				});
+				if (!response.ok) {
+								let { errorMsg } = getErrorMessage({
+									status: response?.status,
+									action: userActions.ADD,
+									module: resourceNames.TRAINEE_TESTIMONIAL
+								});
+				
+								return fail(response.status, {
+									error: errorMsg,
+									success: false,
+									data: originalFormData
+								});
+							}
 			}
-		}
 
-		if (method === 'PUT') {
-			const response = await fetch(
-				`${reapUrls.adminTestURL}${urlPath.testPath}/v1/traineetestimonials/${id}`,
-				{
+			if (method === 'PUT') {
+				response = await fetch(`${BASE_URL}/apis/v1/traineetestimonials/${id}`, {
 					method: 'PUT',
 					body: dataToSend,
 					headers
-				}
-			);
+				});
 
-			if (!response.ok || !response.status == 200) {
-				return { error: 'Failed to submit form. Please try again!', data: originalFormData };
+				if (!response.ok) {
+								let { errorMsg } = getErrorMessage({
+									status: response?.status,
+									action: userActions.EDIT,
+									module: resourceNames.TRAINEE_TESTIMONIAL
+								});
+				
+								return fail(response.status, {
+									error: errorMsg,
+									success: false,
+									data: originalFormData
+								});
+							}
 			}
+			return {
+				formSaved: true,
+				message: 'Form saved successfully',
+				status: response.status,
+				data: originalFormData
+			};
+		} catch (err) {
+			console.error('errorr', err);
+			return fail(response.status, {
+				error: err.message,
+				success: false,
+				data: originalFormData
+			});
 		}
-
-		return { success: true, data: data };
 	}
 };

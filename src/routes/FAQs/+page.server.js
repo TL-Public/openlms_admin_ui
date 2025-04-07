@@ -1,3 +1,8 @@
+import { BASE_URL } from '$lib/config';
+import { redirect, fail } from '@sveltejs/kit';
+import { getErrorMessage } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
+
 let modifiedFormdata;
 let originalFormData;
 let id = '';
@@ -42,45 +47,70 @@ function preserveFormData() {
 
 export const actions = {
 	review: preserveFormData(),
-	final: async ({ cookies }) => {
+	final: async ({ cookies, url }) => {
 		const data = payLoad;
 		const authToken = cookies.get('authToken');
 
 		const dataToSend = JSON.stringify(data);
 		const headers = {
 			'Content-Type': 'application/json',
-			// Add token if required for authentication
-
 			Authorization: `Bearer ${authToken}`
 		};
-		if (method === 'POST') {
-			const response = await fetch(
-				'http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/faqs',
-				{
+		let response;
+		try {
+			if (method === 'POST') {
+				response = await fetch(`${BASE_URL}/apis/v1/faqs`, {
 					method: 'POST',
 					body: dataToSend,
 					headers
-				}
-			);
-			if (!response.ok || !response.status == 201) {
-				return { error: 'Failed to submit form. Please try again!', data: originalFormData };
-			}
-		}
+				});
 
-		if (method === 'PUT') {
-			const response = await fetch(
-				`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/faqs/${id}`,
-				{
+				if (!response.ok) {
+					const { errorMsg } = getErrorMessage({
+						status: response?.status,
+						action: userActions.ADD,
+						module: resourceNames.FAQ
+					});
+
+					return fail(response.status, {
+						error: errorMsg,
+						success: false,
+						data: originalFormData
+					});
+				}
+			}
+
+			if (method === 'PUT') {
+				response = await fetch(`${BASE_URL}/apis/v1/faqs/${id}`, {
 					method: 'PUT',
 					body: dataToSend,
 					headers
-				}
-			);
-			if (!response.ok || !response.status == 200) {
-				return { error: 'Failed to submit form. Please try again!', data: originalFormData };
-			}
-		}
+				});
 
-		return { success: true, data: data };
+				if (!response.ok) {
+					const { errorMsg } = getErrorMessage({
+						status: response?.status,
+						action: userActions.EDIT,
+						module: resourceNames.FAQ
+					});
+
+					return fail(response.status, {
+						error: errorMsg,
+						success: false,
+						data: originalFormData
+					});
+				}
+			}
+
+			return { success: true, data: data };
+		} catch (err) {
+			console.log('error', err.message, 'response.status', response.status);
+
+			return fail(response.status, {
+				error: err.message,
+				success: false,
+				data: originalFormData
+			});
+		}
 	}
 };

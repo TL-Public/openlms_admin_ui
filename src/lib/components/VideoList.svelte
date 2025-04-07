@@ -1,9 +1,13 @@
 <script>
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { String_Constants } from '/src/config/constants.js';
 	import { languageMap } from '/src/config/constants.js';
 	import { createEventDispatcher } from 'svelte';
 	import { chapterSuccessMessage, chapterErrorMessage } from '/src/routes/courses/courseStore.js';
+	import {roles} from '$lib/config.js'
+	import {userDetails} from '/src/routes/store.js'
+	import { onMount } from 'svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import VideoPodSkeleton from '$lib/components/VideoPodSkeleton.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
@@ -16,6 +20,10 @@
 	import MoveVideoAcrossChaptersForm from '$lib/courses/courseDetails/MoveVideoAcrossChaptersForm.svelte';
 	import MoveVideoAcrossCourses from '$lib/courses/courseDetails/MoveVideoAcrossCourses.svelte';
 	import Button from './Button.svelte';
+	import {checkActionPermission } from '$lib/utils/helper.js'
+	import {moduleNames, actionNames} from '$lib/data.js'
+	import VideoEdit from '$lib/courses/courseDetails/VideoEdit.svelte';
+
 
 	export let params;
 	export let showSearchBar = true;
@@ -54,7 +62,16 @@
 	let videoToMove;
 	let orderNumberOfLastVideo;
 	let selectedLanguage;
-	let modalOpen=false;
+	let modalOpen = false;
+	let showEditModal = false
+	let videoToEdit;
+	let permissionsObject ={
+	allowVideoMove : false,
+	allowVideoDeletion: false,
+	allowVideoAddition:false,
+	allowReorderVideos : false,
+	allowEditVideo:false
+	}
 
 	$: videos = updateVideosDataInAscendingOrder(chapterData?.videos);
 	$: videosCopy = videos ? videos : [];
@@ -165,16 +182,14 @@
 	function handleDeletionModal(e) {
 		showDeletionModal = true;
 		videoToDelete = e.detail;
-		modalOpen=true;
+		modalOpen = true;
 		dispatch('modalOpened');
-
 	}
 
 	function handleCancelVideoDeletion(e) {
 		showDeletionModal = false;
-		modalOpen=false;
+		modalOpen = false;
 		dispatch('modalClosed');
-
 	}
 
 	function handleVideoDeletion(e) {
@@ -207,17 +222,14 @@
 
 	function handleAddVideoModal() {
 		showAddVideoModal = true;
-		modalOpen=true;
+		modalOpen = true;
 		dispatch('modalOpened');
-
-
 	}
 
 	function handleCancelSubmission() {
 		showAddVideoModal = false;
-		modalOpen=false;
+		modalOpen = false;
 		dispatch('modalClosed');
-
 	}
 
 	function handleAddVideo(e) {
@@ -240,33 +252,53 @@
 		showMoveModal = true;
 		chapterSuccessMessage.set('');
 		videoToMove = e.detail;
-		modalOpen=true;
+		modalOpen = true;
 		dispatch('modalOpened');
-
 	}
 
 	function handleMoveVideosModalCancelSubmission(e) {
 		showMoveModal = false;
-		modalOpen=false;
+		modalOpen = false;
 		dispatch('modalClosed');
-
 	}
 
 	// -------------------Move video across courses ------------------------
 	function handleOpenMoveVideoAcrossCoursesModal() {
 		showMoveModal = false;
 		showMoveVideosAcrossCoursesModal = true;
-		modalOpen=true;
+		modalOpen = true;
 		dispatch('modalOpened');
-
 	}
 
 	function handleCancelSubmissionMoveVideosAcrossCourses() {
 		showMoveVideosAcrossCoursesModal = false;
-		modalOpen=false;
+		modalOpen = false;
 		dispatch('modalClosed');
+	}
+
+	// --------------------- Edit Video----------------------------------
+	function handleEditModal(e){
+		showEditModal = true
+		videoToEdit = e.detail
+		dispatch('modalOpened');
 
 	}
+
+	function handleEditVideo(e){
+	
+		chapterSuccessMessage.set('');
+		let index = chapterData.videos.findIndex(v =>v.uuid ===e.detail.result.uuid)
+		chapterData.videos[index]=e.detail.result
+		chapterErrorMessage.set('');
+		chapterSuccessMessage.set(`Successfully edited the video - "${videoToEdit.name}".`);
+		videoToEdit={}
+	}
+
+	function handleCancelEditSubmission(e){
+		showEditModal = false
+		videoToEdit = {}
+	}
+
 
 	// -------------------- Video Filters -----------------------------------
 	async function handleVideoFilter(event) {
@@ -281,7 +313,7 @@
 
 	function dragStart(event, index, video) {
 		// If any modal is open the drag events in the background are restricted
-		if(modalOpen) return
+		if (modalOpen || !permissionsObject?.allowReorderVideos) return;
 		let videoIndex = videosCopy.findIndex((item) => item.uuid === video.uuid);
 
 		if (videoIndex === -1) {
@@ -296,7 +328,7 @@
 		event.target.style.cursor = 'grab';
 	}
 	function dragOver(event) {
-		if(modalOpen) return
+		if (modalOpen || !permissionsObject?.allowReorderVideos) return;
 		event.preventDefault();
 		event.target.style.cursor = 'grab';
 
@@ -319,8 +351,8 @@
 
 	async function drop(event, index, video) {
 		// If any modal is open the drag events in the background are restricted
-		if(modalOpen || !draggedVideo ) return
-
+		if (modalOpen || !draggedVideo) return;
+		let response;
 		try {
 			let targetIndex = videosCopy.findIndex((item) => item?.uuid === video?.uuid);
 			if (targetIndex === -1 || draggedIndex === targetIndex) return;
@@ -352,7 +384,7 @@
 			videosCopy = rearrangedArray; // Update state reactively for UI
 
 			// API Call to save order
-			const response = await fetch(
+			response = await fetch(
 				`/apis/courses/details/${chapterData?.courseUuid}/chapters/${chapterData?.uuid}?courseUuid=${chapterData?.courseUuid}&&uuid=${chapterData?.uuid}`,
 				{
 					method: 'PUT',
@@ -375,6 +407,10 @@
 			}
 		} catch (error) {
 			console.error('Reordering failed:', error);
+			if (response.status == 401) {
+				const fromUrl = $page.url.pathname + $page.url.search;
+				goto(`/login?redirectTo=${fromUrl}`);
+			}
 			videosCopy = [...originalVideosData]; // Revert on failure
 			chapterErrorMessage.set('Failed to reorder videos.');
 		} finally {
@@ -394,7 +430,7 @@
 	function updateVideosDataInAscendingOrder() {
 		videosDataInAscendingOrder = [];
 		chapterData?.videos?.forEach((video) => {
-			if (video?.orderNumber) {
+			if (video?.orderNumber || Number(video?.orderNumber) == 0) {
 				// Check if orderNumber exists
 				videosDataInAscendingOrder.push(video);
 			}
@@ -412,9 +448,53 @@
 	function findOrderNUmberOfLastVideo() {
 		orderNumberOfLastVideo = videos[videos?.length - 1]?.orderNumber || 0;
 	}
+
+	function roleBasedAcessSetting(){
+		if(!$userDetails?.role) return
+		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.ADD_VIDEO)){
+			permissionsObject.allowVideoAddition=true
+		} else{
+			permissionsObject.allowVideoAddition=false	
+
+		}
+		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.DELETE_VIDEO)){
+			permissionsObject.allowVideoDeletion=true	
+		} else{
+			permissionsObject.allowVideoDeletion=false	
+
+		}
+		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.REORDER_VIDEO)){
+			permissionsObject.allowReorderVideos=true	
+		} else{
+			permissionsObject.allowReorderVideos=false	
+
+		}
+		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.MOVE_VIDEO)){
+			permissionsObject.allowVideoMove=true	
+		} else{
+			permissionsObject.allowVideoMove=false	
+
+		}
+		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.EDIT_VIDEO)){
+			permissionsObject.allowEditVideo=true	
+		} else{
+			permissionsObject.allowEditVideo=false	
+
+		}
+		}
+
+		onMount(() => {
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe(); // Cleanup subscription
+	});
 </script>
 
-<div class="bg-blue-10 p-4 px-8 rounded-lg border-gray-50 border w-full mx-auto">
+<div class="bg-blue-10 p-2 sm:p-4 px-4 sm:px-8 rounded-lg border-gray-50 border w-full mx-auto">
 	<div class="w-full mx-auto max-w-[800px]">
 		<div class="mb-4 grid sm:grid-cols-2 gap-4">
 			{#if showSearchBar}
@@ -425,7 +505,7 @@
 				/>
 			{/if}
 
-			{#if showAddButton}
+			{#if showAddButton && permissionsObject?.allowVideoAddition}
 				<button
 					class="px-6 py-2 font-semibold text-white bg-primary rounded-[4px] capitalize text-sm text-nowrap w-fit"
 					on:click={handleGoToPage}
@@ -448,6 +528,8 @@
 				{languageAvailableForVideos}
 				on:handleSelectedLanguage={handleSelectedLanguage}
 				{selectedLanguage}
+				showCount={true}
+				{videos}
 			/>
 		{/if}
 
@@ -461,11 +543,11 @@
 
 		{#if !loadingInVideos}
 			{#if videosCopy?.length > 0 && errorInVideos == null}
-				<div class="grid sm:grid-cols-1 gap-4">
+				<div class="grid grid-cols-1 gap-4">
 					{#each videosCopy as video, index (index)}
 						<div
 							class="max-w-[800px]"
-							draggable={!modalOpen}
+							draggable={!modalOpen && permissionsObject?.allowReorderVideos}
 							on:dragstart|stopPropagation={(event) => dragStart(event, index, video)}
 							on:dragover|stopPropagation={dragOver}
 							on:drop|stopPropagation={(event) => drop(event, index, video)}
@@ -484,6 +566,7 @@
 								on:handleDeletionModal={handleDeletionModal}
 								on:handleAddVideoFromCurrentChapter
 								on:handleMoveModal={handleMoveModal}
+								on:handleEditModal={handleEditModal}
 							/>
 						</div>
 					{/each}
@@ -497,9 +580,11 @@
 				{#if videosCopy?.length == 0}
 					<div>No videos added. Start by adding videos.</div>
 				{/if}
+				{#if permissionsObject?.allowVideoAddition}
 				<div class="mt-4">
 					<Button on:click={handleAddVideoModal}>+ Add Video</Button>
 				</div>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -604,5 +689,13 @@
 		{courseTitle}
 		video={videoToMove}
 		{courseUuid}
+	/>
+{/if}
+
+{#if showEditModal}
+	<VideoEdit
+		video={videoToEdit}
+		on:handleEditVideo={handleEditVideo}
+		on:handleCancelSubmission={handleCancelEditSubmission}
 	/>
 {/if}

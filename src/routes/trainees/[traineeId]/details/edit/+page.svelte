@@ -8,11 +8,11 @@
 
 	let { traineeDetailsData } = data;
 
-	$: error = traineeDetailsData?.error ? true : false;
+	$: primaryDataError = traineeDetailsData?.error ? traineeDetailsData?.error : '';
 </script>
 
-{#if !error}
+{#if !primaryDataError}
 	<AddTraineeFormNew route={$page.route.id} params={$page.params} formObject={traineeDetailsData} />
 {:else}
-	<ErrorMessage error={'Failed to fetch data'} />
+	<ErrorMessage error={primaryDataError} />
 {/if}

@@ -2,19 +2,19 @@
 	import { createEventDispatcher } from 'svelte';
 	export let placeholder = 'Search by title or topic';
 	export let debounceDelay = 500; // 500ms delay
-	export let showSearchButton=true;
-  
+	export let showSearchButton = true;
+
 	let dispatch = createEventDispatcher();
 	let searchBoxValue = '';
-	let searchTimeout;	
-	
+	let searchTimeout;
+
 	// debounce function to prevent multiple calls to the function
 	const debouncedHandleSearchValue = (searchBoxValue, delay) => {
-			clearTimeout(searchTimeout);
-			searchTimeout = setTimeout(() =>{
-					dispatch('handleSearchValue', searchBoxValue);
-			}, delay);
-		};
+		clearTimeout(searchTimeout);
+		searchTimeout = setTimeout(() => {
+			dispatch('handleSearchValue', searchBoxValue);
+		}, delay);
+	};
 
 	function handleSearchValue() {
 		debouncedHandleSearchValue(searchBoxValue, debounceDelay);
@@ -29,13 +29,13 @@
 	<div class="relative flex gap-4">
 		<input
 			type="text"
-			class=" rounded-md sm:rounded-lg shadow-sm px-12 py-2  flex-1 lg:py-2 border border-orange-100 placeholder:text-sm "
+			class=" rounded-md sm:rounded-lg shadow-sm px-10 py-1 flex-1 sm:py-2 border border-orange-100 placeholder:text-sm leading-none"
 			{placeholder}
 			bind:value={searchBoxValue}
 			on:input={handleSearchValue}
 		/>
 		<svg
-			class="absolute top-2.5 left-3 stroke-orange-100"
+			class="absolute top-2 left-3 stroke-orange-100"
 			width="20"
 			height="20"
 			viewBox="0 0 20 20"
@@ -61,7 +61,9 @@
 			/>
 		</svg>
 		{#if showSearchButton}
-		<button class="px-6 py-2 font-semibold text-white bg-primary rounded-[4px] text-sm"> Search </button>
+			<button class="px-6 py-2 font-semibold text-white bg-primary rounded-[4px] text-sm">
+				Search
+			</button>
 		{/if}
 	</div>
 </div>

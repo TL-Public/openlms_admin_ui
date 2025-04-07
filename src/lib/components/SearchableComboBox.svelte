@@ -14,11 +14,30 @@
 	let showDropdown = false;
 	let dropDownRef;
 	let searchFilterValue = '';
+	let debounceTimer;
 
-	// Clear search filter if optionsCopy becomes empty
-	$: if (optionsCopy?.length === 0 && searchFilterValue) {
-		clearSelection();
-	}
+	$:if (options?.length === 0) {
+		if (!selectedItemName && !selectedItemId) {
+			selectedItemName = '';
+		selectedItemId = '';
+		searchFilterValue = '';
+		showDropdown = false;
+		}
+		
+	} 
+
+	// Update `optionsCopy` dynamically based on the `searchFilterValue`
+	$: optionsCopy = searchFilterValue
+		? options?.filter((data) =>
+				(data?.title || data?.name)?.toLowerCase().includes(searchFilterValue?.toLowerCase())
+			)
+		: [...options];
+
+	// If no options match, the user's input stays in the field and dropdown remains open
+	$: if (optionsCopy.length === 0 && searchFilterValue) {
+		showDropdown = true;
+	} 
+
 
 	onMount(() => {
 		document.addEventListener('click', handleClickOnDocument);
@@ -35,12 +54,6 @@
 		}
 	}
 
-	$: optionsCopy = searchFilterValue
-		? options?.filter((data) =>
-				(data?.title || data?.name)?.toLowerCase().includes(searchFilterValue?.toLowerCase())
-			)
-		: options;
-
 	function handleListItemSelection(e) {
 		validationErrors = '';
 		const selectedData = e.target.closest('li').dataset;
@@ -52,23 +65,31 @@
 	}
 
 	function clearSelection() {
-		showDropdown = false;
 		selectedItemName = '';
 		selectedItemId = '';
 		searchFilterValue = '';
+		showDropdown = false;
 		dispatch('handleDispatchFilterData', { selectedItemId, selectedItemName });
 	}
 
 	function toggleDropdown() {
 		showDropdown = !showDropdown;
 	}
+
+	// Handle search input with debouncing
+	function handleSearchInput(e) {
+		const value = e.target.value;
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			searchFilterValue = value;
+		}, 300); }
 </script>
 
 <div>
 	{#if label}
-		<label for={filterCategory} class="block text-xs sm:text-sm font-medium leading-5 text-darkGray"
-			>{label}</label
-		>
+		<label for={filterCategory} class="block text-xs sm:text-sm font-medium leading-5 text-darkGray">
+			{label}
+		</label>
 	{/if}
 	<div class="relative" bind:this={dropDownRef}>
 		<input
@@ -78,14 +99,14 @@
 			role="combobox"
 			aria-controls="options"
 			placeholder={placeholder || ''}
-			value={searchFilterValue ? searchFilterValue : selectedItemName}
+			value={searchFilterValue || selectedItemName}
 			class:ring-red-500={validationErrors}
 			class:ring-gray-300={!validationErrors}
 			{disabled}
 			on:click={toggleDropdown}
-			on:input={(e) => (searchFilterValue = e.target.value)}
+			on:input={handleSearchInput}
 		/>
-		{#if selectedItemName && showDropdown}
+		{#if selectedItemName && showDropdown && !disabled}
 			<button
 				type="button"
 				class="absolute inset-y-0 right-0 flex items-center px-2 focus:outline-none"
@@ -103,7 +124,7 @@
 				</svg>
 			</button>
 		{/if}
-		{#if validationErrors && !showDropdown}
+		{#if validationErrors && !showDropdown && !disabled}
 			<button class="absolute inset-y-0 right-0 flex items-center px-2 focus:outline-none">
 				<svg
 					class="h-5 w-5 text-red-500"
@@ -119,7 +140,7 @@
 				</svg>
 			</button>
 		{/if}
-		{#if !validationErrors && !showDropdown}
+		{#if !validationErrors && !showDropdown && !disabled}
 			<button class="absolute inset-y-0 right-0 flex items-center px-2 focus:outline-none">
 				<svg
 					class="-mr-1 h-4 w-4 sm:h-5 sm:w-5 text-gray-400"
@@ -134,44 +155,52 @@
 					/>
 				</svg>
 			</button>
-		{/if}
-
-		{#if showDropdown}
+		{/if}		
+		{#if showDropdown && !disabled}
 			<ul
 				class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
 				id="options"
 				role="listbox"
 				on:click={handleListItemSelection}
 			>
-				{#each optionsCopy as data (data?.id || data?.uuid)}
-					<li
-						data-id={data?.uuid || data?.id}
-						data-name={data?.title || data?.name}
-						class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900"
-					>
-						<span class="block truncate text-xs sm:text-sm" title={data?.title || data?.name}
-							>{data?.title || data?.name}</span
-						>
-						{#if selectedItemId == (data?.uuid || data?.id)}
-							<span class="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600">
-								<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-									<path
-										fill-rule="evenodd"
-										d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-										clip-rule="evenodd"
-									/>
-								</svg>
-							</span>
-						{/if}
+				{#if options?.length === 0}
+					<li class="relative cursor-default select-none py-2 px-3 text-gray-500">
+						No options available
 					</li>
-				{/each}
+				{:else if optionsCopy?.length > 0}
+					{#each optionsCopy as data (data?.id || data?.uuid)}
+						<li
+							data-id={data?.uuid || data?.id}
+							data-name={data?.title || data?.name}
+							class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900"
+						>
+							<span class="block truncate text-xs sm:text-sm" title={data?.title || data?.name}>
+								{data?.title || data?.name}
+							</span>
+							{#if selectedItemId == (data?.uuid || data?.id)}
+								<span class="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600">
+									<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+										<path
+											fill-rule="evenodd"
+											d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+											clip-rule="evenodd"
+										/>
+									</svg>
+								</span>
+							{/if}
+						</li>
+					{/each}
+				{:else}
+					<li class="relative cursor-default select-none py-2 px-3 text-gray-500">
+						No search results found
+					</li>
+				{/if}
 			</ul>
 		{/if}
-
-		{#if validationErrors && !showDropdown}
+		{#if validationErrors && !showDropdown && !disabled}
 			<div class="relative mb-4 mt-1">
 				<p class=" text-xs text-red-600 absolute w-full right-0">{validationErrors}</p>
 			</div>
 		{/if}
 	</div>
-</div>
+</div> 

@@ -6,9 +6,14 @@
 	import Button from '$lib/components/Button.svelte';
 	import DeletionErrorMessage from '$lib/components/DeletionErrorMessage.svelte';
 	import LineLoader from '$lib/components/LineLoader.svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { getErrorMessage } from '$lib/utils/helper.js';
+	import { resourceNames, userActions } from '$lib/data.js';
 
 	export let id = '';
 	export let name;
+	export let module = '';
 	export let heading;
 	export let para;
 	export let code;
@@ -32,15 +37,30 @@
 	}
 
 	async function handleDeletion() {
+		let response;
 		try {
 			errorMessage = '';
 			isSubmitting = true;
-			const response = await fetch(`${endPoint}${id}${queryParams}`, { method: 'DELETE' });
+			response = await fetch(`${endPoint}${id}${queryParams}`, { method: 'DELETE' });
+
 
 			// Handle cases where the response is 204 (No Content)
 			if (!response.ok) {
-				errorMessage = `Failed to delete ${name}. Please try again.`;
-				throw new Error('Failed to delete item');
+				// errorMessage = `Failed to delete ${name}. Please try again.`;
+				// throw new Error('Failed to delete item');
+
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: response?.status,
+					action: userActions.DELETE,
+					module: module
+				});
+
+				if (redirectUser) {
+					handleRedirection(response.status, $page.url.pathname, $page.url.search);
+				}
+
+				errorMessage = errorMsg;
+				return;
 			}
 
 			let result;
@@ -51,12 +71,17 @@
 				result = {}; // Default to an empty object if there's no content
 			}
 
-			if (!result.error) {
+			if (!result?.error) {
 				dispatch('handleDeletion', id);
-			} else {
-				errorMessage = `Failed to delete ${name}. Please try again.`;
 			}
+			// else {
+			// 	errorMessage = `Failed to delete ${name}. Please try again.`;
+			// }
 		} catch (error) {
+			// if (response.status == 401) {
+			// 	const fromUrl = $page.url.pathname + $page.url.search;
+			// 	goto(`/login?redirectTo=${fromUrl}`);
+			// }
 			console.error('Error:', error);
 		} finally {
 			isSubmitting = false;
@@ -85,7 +110,7 @@
 	></div>
 
 	<div class="fixed inset-0 z-10 w-screen overflow-auto">
-		<div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+		<div class="flex min-h-full justify-center p-4 text-center items-center sm:p-0">
 			<div
 				class="relative transform rounded-lg bg-gray-10 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 max-h-[90vh] overflow-auto"
 				on:click|stopPropagation
@@ -122,10 +147,7 @@
 						</svg>
 					</div>
 					<div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left flex-1 min-w-0">
-						<h3
-							class="text-base font-semibold leading-6 text-red-700 break-words "
-							id="modal-title"
-						>
+						<h3 class="text-base font-semibold leading-6 text-red-700 break-words" id="modal-title">
 							{heading}
 						</h3>
 					</div>
@@ -137,14 +159,14 @@
 					<slot></slot>
 				</div>
 				<div class="mt-5 sm:mt-4 flex gap-2 justify-end">
+					<Button type="button" btnType="secondary" disabled={isSubmitting} on:click={handleCancel}
+						>Cancel</Button
+					>
 					<Button
 						type="button"
 						btnType="danger"
 						on:click={handleDeletion}
 						disabled={!deleteTextConfirmation || isSubmitting}>Delete</Button
-					>
-					<Button type="button" btnType="secondary" disabled={isSubmitting} on:click={handleCancel}
-						>Cancel</Button
 					>
 				</div>
 			</div>

@@ -12,15 +12,16 @@
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import DeletionModalViaAPI from '$lib/components/DeletionModalViaAPI.svelte';
 	import InputField from '$lib/components/InputField.svelte';
-	import {getStatusName } from '$lib/utils/helper.js';
-
+	import { getStatusName, combineErrorMessages } from '$lib/utils/helper.js';
+	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
+	import { resourceNames } from '$lib/data.js';
 
 	export let data;
 
 	let { coursesData, traineeDetailsData, rsetiData } = data;
-	let tableData = []
-	let searchValue = ''
-	let tableActionName = ''
+	let tableData = [];
+	let searchValue = '';
+	let tableActionName = '';
 	let courseFilterValue = String_Constants.ALL_COURSES;
 	let deleteTextInput = '';
 	let deletionConfirmText = 'please delete this course';
@@ -29,13 +30,14 @@
 	let rsetiCourseDeletionUuid = '';
 	let rsetiCourseNameForDeletion = '';
 	let rsetiNameForDeletion = '';
-	let viewModal=false;
+	let viewModal = false;
 	let isLoading = true;
-	$: error = traineeDetailsData?.error ? true : false;
-			
-	$: if (traineeDetailsData.status == 401) {
-		tokenExpired.set(true);
-	}
+
+	//primary data is the most important data on the page. Error in loading this data means, the page itself will be shown as an error page
+	$: primaryDataError = traineeDetailsData?.error ? traineeDetailsData?.error : '';
+
+	//data other than primary data is considered secondary errors - shown at top of the page.
+	$: secondaryErrors = combineErrorMessages(coursesData?.error, rsetiData?.error);
 
 	// Function to normalize text (removes spaces and ignores case)
 	const normalizeText = (text) => text?.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -43,133 +45,143 @@
 	// Function to check if input matches the required text
 	$: isTextValid(deleteTextInput);
 	function isTextValid() {
-	deleteTextConfirmation = normalizeText(deleteTextInput) === normalizeText(deletionConfirmText);
+		deleteTextConfirmation = normalizeText(deleteTextInput) === normalizeText(deletionConfirmText);
 	}
 
-	$:if(!coursesData?.error){
+	$: if (!coursesData?.error) {
 		courseFilterList = [
-    { uuid: 0, title: courseFilterValue },
-    ...coursesData?.map(course => {
-        const englishTranslation = course?.translations?.find(t => t?.languageCode === "en");
-        return {
-            uuid: course?.uuid,
-            title: englishTranslation ? englishTranslation.title : "No English Title"
-        };
-    })
-	];
+			{ uuid: 0, title: courseFilterValue },
+			...coursesData?.map((course) => {
+				const englishTranslation = course?.translations?.find((t) => t?.languageCode === 'en');
+				return {
+					uuid: course?.uuid,
+					title: englishTranslation ? englishTranslation.title : 'No English Title'
+				};
+			})
+		];
 	}
 
-$:console.log('tableData', tableData)
+	// $: {
 
-$:{
-	if (!error && !rsetiData.error && !coursesData.error) {
-		
+	// }
+	if (!primaryDataError && !rsetiData.error && !coursesData.error) {
 		const rsetiMap = new Map(
-		rsetiData?.map(rseti => [
-        rseti.uuid,
-        Array.isArray(rseti?.translations)
-					? rseti?.translations.find(t => t?.languageCode === 'en')?.name || 'Unknown RSETI'
-					: 'Unknown RSETI',
-    ])
-    );
+			rsetiData?.map((rseti) => [
+				rseti.uuid,
+				Array.isArray(rseti?.translations)
+					? rseti?.translations.find((t) => t?.languageCode === 'en')?.name || 'Unknown RSETI'
+					: 'Unknown RSETI'
+			])
+		);
 
-    	const courseMap = new Map(
-        coursesData?.map(course => [
-        course.uuid,
-        Array.isArray(course?.translations)
-            ? course?.translations?.find(t => t?.languageCode === 'en')?.title || 'Unknown Course'
-            : 'Unknown Course',
-    ])
-    );
+		const courseMap = new Map(
+			coursesData?.map((course) => [
+				course.uuid,
+				Array.isArray(course?.translations)
+					? course?.translations?.find((t) => t?.languageCode === 'en')?.title || 'Unknown Course'
+					: 'Unknown Course'
+			])
+		);
 
-    // Check if traineeDetailsData contains traineeRsetis and process accordingly
-    tableData = traineeDetailsData?.traineeRsetis?.map(rseti => {
-        const rsetiName = rsetiMap.get(rseti?.rsetiUuid) || 'Unknown RSETI';
-        const courseName = courseMap.get(rseti?.courseUuid) || 'Unknown Course';
-        return {
-            uuid: traineeDetailsData?.uuid,
-            name: traineeDetailsData?.candidateName,
-            traineeId: traineeDetailsData?.enrollId,
-            username: traineeDetailsData?.username,
-            rsetiName,
-            courseName,
-			rsetiUuid: rseti?.rsetiUuid,
-			rsetiCourseUuid: rseti?.rsetiCourseUuid,
-            enrolledOn: rseti?.enrolledOn, 
-			enrolledOnDate: new Date(rseti?.enrolledOn) || null,
-			status: getStatusName(rseti?.status),
-        };
-    }) || [];
-	tableData=tableData
-	isLoading = false;
+		// Check if traineeDetailsData contains traineeRsetis and process accordingly
+		// tableData = traineeDetailsData?.traineeRsetis?.map(rseti => {
+		//     const rsetiName = rsetiMap.get(rseti?.rsetiUuid) || 'Unknown RSETI';
+		//     const courseName = courseMap.get(rseti?.courseUuid) || 'Unknown Course';
+		//     return {
+		//         uuid: traineeDetailsData?.uuid,
+		//         name: traineeDetailsData?.candidateName,
+		//         traineeId: traineeDetailsData?.enrollId,
+		//         username: traineeDetailsData?.username,
+		//         rsetiName,
+		//         courseName,
+		// 		rsetiUuid: rseti?.rsetiUuid,
+		// 		rsetiCourseUuid: rseti?.rsetiCourseUuid,
+		//         enrolledOn: rseti?.enrolledOn,
+		// 		enrolledOnDate: new Date(rseti?.enrolledOn) || null,
+		// 		status: getStatusName(rseti?.status),
+		//     };
+		// }) || [];
+
+		tableData =
+			traineeDetailsData?.traineeRsetis
+				?.filter((rseti) => rseti?.courseUuid) // Filter out entries with no courseUuid
+				?.map((rseti) => {
+					const rsetiName = rsetiMap.get(rseti?.rsetiUuid) || 'Unknown RSETI';
+					const courseName = courseMap.get(rseti?.courseUuid) || 'Unknown Course';
+					return {
+						uuid: traineeDetailsData?.uuid,
+						name: traineeDetailsData?.candidateName,
+						traineeId: traineeDetailsData?.enrollId,
+						username: traineeDetailsData?.username,
+						rsetiName,
+						courseName,
+						rsetiUuid: rseti?.rsetiUuid,
+						rsetiCourseUuid: rseti?.rsetiCourseUuid,
+						enrolledOn: rseti?.enrolledOn,
+						enrolledOnDate: rseti?.enrolledOn ? new Date(rseti.enrolledOn) : null,
+						status: getStatusName(rseti?.status)
+					};
+				}) || [];
+		tableData = tableData;
+		isLoading = false;
 	}
-}
-	
-
-
-	
 
 	async function handleCourseFilter(event) {
 		// extracting the filter values from the event
 		let courseFilter = event.detail.courseFilter;
 
 		let courses = [];
-		
 	}
 
 	function sendSearchValueToDatatable(e) {
 		searchValue = e.detail;
 	}
 
-		
 	// Courses Table Config Objects
 
-		let sortAccordingTo = {
+	let sortAccordingTo = {
 		header: null,
 		entityType: null,
 		sortingOrder: null
-	    };
+	};
 
-
-		let tableHeaderDisplay = [
+	let tableHeaderDisplay = [
 		{
 			key: 'courseName',
 			name: 'course Name',
-			width:'40%'
+			width: '40%'
 		},
 		{
 			key: 'rsetiName',
 			name: 'RSETI',
-			width:'30%'
+			width: '30%'
 		},
 		{
 			key: 'enrolledOn',
 			name: 'Enrolled On',
-			sortKey: 'enrolledOnDate',
+			sortKey: 'enrolledOnDate'
 		},
 		{
 			key: 'status',
 			name: 'Status',
-			width:'10%'
-		},
-		
+			width: '10%'
+		}
 	];
 
 	let actionConfigObject = [
 		{
 			actionName: 'edit',
 			actionIconName: 'edit',
-			modal:false,
+			modal: false
 		},
 		{
 			actionName: 'delete',
 			actionIconName: 'delete',
-			modal:true,
-			
+			modal: true
 		}
 	];
 
-	function handleTableAction(e){
+	function handleTableAction(e) {
 		const actionName = e.detail.actionName;
 		const actionData = e.detail.actionData;
 
@@ -191,14 +203,13 @@ $:{
 			enrolledOn: formatDate(enrolledOn),
 			rsetiName: rsetiNameForDeletion,
 			rsetiCourseName: rsetiCourseNameForDeletion,
-			method:"PUT"
-		}
+			method: 'PUT'
+		};
 
 		if (actionName === 'edit') {
-    	const queryString = new URLSearchParams({ data: JSON.stringify(data) }).toString();
-    	goto(`/trainees/${traineeDetailsData?.uuid}/details/courseEdit?${queryString}`);
-	}
-		
+			const queryString = new URLSearchParams({ data: JSON.stringify(data) }).toString();
+			goto(`/trainees/${traineeDetailsData?.uuid}/details/courseEdit?${queryString}`);
+		}
 	}
 
 	function handleCancel() {
@@ -213,6 +224,7 @@ $:{
 			return tableData?.rsetiCourseUuid !== rsetiCourseDeletionUuid;
 		});
 		message.set(`Successully deleted the course - "${rsetiCourseNameForDeletion}".`);
+
 		tableData = filteredCoursesData;
 	}
 
@@ -229,14 +241,15 @@ $:{
 	});
 
 	function formatDate(dateString) {
-    if (!dateString) return ''; // Ensure the input is valid
-    const date = new Date(dateString); // Convert the string to a Date object
-    const day = String(date.getDate()).padStart(2, '0'); // Extract the day
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // Extract the month
-    const year = date.getFullYear(); // Extract the full year
-    return `${year}-${month}-${day}`; // Return in yyyy-mm-dd format
-}
+		if (!dateString) return ''; // Ensure the input is valid
+		const date = new Date(dateString); // Convert the string to a Date object
+		const day = String(date.getDate()).padStart(2, '0'); // Extract the day
+		const month = String(date.getMonth() + 1).padStart(2, '0'); // Extract the month
+		const year = date.getFullYear(); // Extract the full year
+		return `${year}-${month}-${day}`; // Return in yyyy-mm-dd format
+	}
 </script>
+
 {#if $message}
 	<SuccessMessage
 		successMessage={$message}
@@ -250,77 +263,83 @@ $:{
 	bind:courseFilterValue />
 </div> -->
 
-{#if !error }
-<div class=" mb-4">
-	<TraineeDetailsOverview {traineeDetailsData}/>
-</div>
-<div class="mb-4">
-	<h2 class="heading-L mb-4">Courses ({tableData?.length})</h2>
-	<div class="mt-5">
-		<div class="mb-5 flex gap-2 md:flex-nowrap flex-wrap">
-			<SearchBar
-			on:handleSearchValue={sendSearchValueToDatatable}
-			placeholder={'Search by name'}
-			showSearchButton={false}
-			/>
-			<div class="flex gap-2 ml-auto">
-				<Button on:click={handleGoToCourseAdd}>+ Course</Button>
+{#if !primaryDataError}
+	{#if secondaryErrors}
+		<div class=" mb-4">
+			<SubmissionErrorMessage errorMessage={secondaryErrors} />
+		</div>
+	{/if}
+	<div class=" mb-4">
+		<TraineeDetailsOverview {traineeDetailsData} />
+	</div>
+	<div class="mb-4">
+		<h2 class="heading-L mb-4">Courses ({tableData?.length})</h2>
+
+		<div class="mt-5">
+			<div class="mb-5 flex gap-2 md:flex-nowrap flex-wrap">
+				<SearchBar
+					on:handleSearchValue={sendSearchValueToDatatable}
+					placeholder={'Search by name'}
+					showSearchButton={false}
+				/>
+				<div class="flex gap-2 ml-auto">
+					<Button on:click={handleGoToCourseAdd}>+ Course</Button>
+				</div>
 			</div>
 		</div>
-	</div>
-	{#if !isLoading}
 		<ListingTable
 			{tableHeaderDisplay}
 			{actionConfigObject}
 			{searchValue}
 			{tableData}
 			on:tableActionClick={handleTableAction}
-			error={error || rsetiData.error || coursesData.error}
+			error={'Failed to fetch courses'}
 			rowHeight={'compact'}
 			bind:sortAccordingTo
 		/>
+		<!-- {#if !isLoading}
 		{:else}
 			<ErrorMessage error={'Failed to fetch courses'} />
-		{/if}
-</div>
-{:else}
-	<ErrorMessage error={'Failed to fetch trainee details'} />
-	{/if}
-
-	<div>
-		{#if  tableActionName === 'delete' && viewModal}
-			<DeletionModalViaAPI
-				name={rsetiCourseNameForDeletion}
-				queryParams={`?rsetiCourseUuid=${rsetiCourseDeletionUuid}`}
-				heading={`About to delete the course of the trainee ${traineeDetailsData?.candidateName} - "${rsetiCourseNameForDeletion}"`}
-				para={'Are you sure you want to delete the course? This action cannot be undone.'}
-				endPoint={`/apis/trainees/${traineeDetailsData?.uuid}/courseDeletion`}
-				{deleteTextConfirmation}
-				on:handleCancelDeletion={handleCancel}
-				on:handleDeletion={handleCourseDeletion}
-			>
-				<div
-					class=" flex flex-col gap-2 p-6 bg-offwhite rounded-lg mb-4 border border-gray-50 text-darkGray"
-				>
-					<div>
-						<p class="text-sm capitalize">
-							<span class="label">Title :</span>
-							{rsetiCourseNameForDeletion}
-						</p>
-						<p class="text-sm"><span class="font-medium">Rseti :</span>{rsetiNameForDeletion}</p>
-					</div>
-				</div>
-
-				<div class="">
-					<InputField
-						label={"Type 'Please delete this course' to confirm"}
-						placeholder={" Type 'Please delete this course'"}
-						name={'deletion'}
-						labelFontWeight={'font-normal'}
-						bind:value={deleteTextInput}
-						required
-					/>
-				</div>
-			</DeletionModalViaAPI>
-		{/if}
+		{/if} -->
 	</div>
+{:else}
+	<ErrorMessage error={primaryDataError} />
+{/if}
+
+<div>
+	{#if tableActionName === 'delete' && viewModal}
+		<DeletionModalViaAPI
+			module={resourceNames.COURSE}
+			queryParams={`?rsetiCourseUuid=${rsetiCourseDeletionUuid}`}
+			heading={`About to delete the course of the trainee ${traineeDetailsData?.candidateName} - "${rsetiCourseNameForDeletion}"`}
+			para={'Are you sure you want to delete the course? This action cannot be undone.'}
+			endPoint={`/apis/trainees/${traineeDetailsData?.uuid}/courseDeletion`}
+			{deleteTextConfirmation}
+			on:handleCancelDeletion={handleCancel}
+			on:handleDeletion={handleCourseDeletion}
+		>
+			<div
+				class=" flex flex-col gap-2 p-6 bg-offwhite rounded-lg mb-4 border border-gray-50 text-darkGray"
+			>
+				<div>
+					<p class="text-sm capitalize">
+						<span class="label">Title :</span>
+						{rsetiCourseNameForDeletion}
+					</p>
+					<p class="text-sm"><span class="font-medium">Rseti :</span>{rsetiNameForDeletion}</p>
+				</div>
+			</div>
+
+			<div class="">
+				<InputField
+					label={"Type 'Please delete this course' to confirm"}
+					placeholder={" Type 'Please delete this course'"}
+					name={'deletion'}
+					labelFontWeight={'font-normal'}
+					bind:value={deleteTextInput}
+					required
+				/>
+			</div>
+		</DeletionModalViaAPI>
+	{/if}
+</div>

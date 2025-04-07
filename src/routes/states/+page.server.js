@@ -1,3 +1,4 @@
+import { BASE_URL } from '$lib/config';
 
 let modifiedFormdata;
 let originalFormData;
@@ -36,7 +37,7 @@ export const actions = {
 		};
 		if (method === 'POST') {
 			const response = await fetch(
-				'http://reap-dev-admin-service.ap-south-1.elasticbeanstalk.com/reap/api/v1/states',
+				`${BASE_URL}/apis/v1/states`,
 				{
 					method: 'POST',
 					headers:headers,
@@ -50,7 +51,7 @@ export const actions = {
 
 		if (method === 'PUT') {
 			const response = await fetch(
-				`http://reap-dev-admin-service.ap-south-1.elasticbeanstalk.com/reap/api/v1/states/${id}`,
+				`${BASE_URL}/apis/v1/states/${id}`,
 				{
 					method: 'PUT',
 					headers:headers,

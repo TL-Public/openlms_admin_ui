@@ -1,10 +1,14 @@
-import { reapUrls, urlPath } from '$config/constants';
+import { BASE_URL } from '$lib/config';
+import { fail } from '@sveltejs/kit';
+import { getErrorMessage } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
+
 let modifiedFormdata;
 let originalFormData;
 let id = '';
 let method = '';
 let image;
-let imageUrl = ''
+let imageUrl = '';
 let payLoad;
 let videoUrl;
 let type;
@@ -14,7 +18,7 @@ function preserveFormData() {
 		const formData = await request.formData();
 		const imageData = formData.getAll('image');
 		image = imageData[0];
-		imageUrl=formData.get('imageUrl')
+		imageUrl = formData.get('imageUrl');
 
 		formData.delete('image');
 		formData.delete('imageUrl');
@@ -46,34 +50,34 @@ function preserveFormData() {
 		];
 
 		// Create the final payload object
-		if(method==='POST'){
-			if(type==='text'){
+		if (method === 'POST') {
+			if (type === 'text') {
 				payLoad = {
 					translations
 				};
 			}
-			if(type==='video')
-			payLoad = {
-				videoUrl:videoUrl,
-				translations
-			};
+			if (type === 'video')
+				payLoad = {
+					videoUrl: videoUrl,
+					translations
+				};
 		}
-		if(method === 'PUT'){
-			if(type==='text'){
+		if (method === 'PUT') {
+			if (type === 'text') {
 				payLoad = {
-					image: imageUrl?imageUrl:null,
+					image: imageUrl ? imageUrl : null,
 					translations
 				};
 			}
-			if(type==='video'){
+			if (type === 'video') {
 				payLoad = {
-					videoUrl:videoUrl,
-					image: imageUrl?imageUrl:null,
+					videoUrl: videoUrl,
+					image: imageUrl ? imageUrl : null,
 					translations
 				};
 			}
 		}
-		
+
 		return {
 			data: originalFormData
 		};
@@ -86,47 +90,58 @@ export const actions = {
 		const data = payLoad;
 		const authToken = cookies.get('authToken');
 		const dataToSend = JSON.stringify(data);
-		
-		const headers =  {
+
+		const headers = {
 			'Content-Type': 'application/json',
-			'Authorization': `Bearer ${authToken}`
+			Authorization: `Bearer ${authToken}`
 		};
 
 		const headersForImageUpload = {
-			'Authorization': `Bearer ${authToken}`
+			Authorization: `Bearer ${authToken}`
 		};
 
 		let response;
 		try {
 			if (method === 'POST') {
-				response = await fetch(
-					`${reapUrls.adminTestURL}${urlPath.testPath}/v1/testimonials`,
-					{
-						method: 'POST',
-						body: dataToSend,
-						headers,
-					}
-				);
+				response = await fetch(`${BASE_URL}/apis/v1/testimonials`, {
+					method: 'POST',
+					body: dataToSend,
+					headers
+				});
 
-				if (!response.ok || !response.status == 201) {
-									if(response.status==409) 
-										return { error: 'Failed to submit form, testimonial already exists. Please try again!', data: originalFormData }
-										return { error: 'Failed to submit form. Please try again!', data: originalFormData };
-								}
+				if (!response.ok) {
+					let { errorMsg } = getErrorMessage({
+						status: response?.status,
+						action: userActions.ADD,
+						module: resourceNames.OFFICIAL_TESTIMONIAL
+					});
+
+					return fail(response.status, {
+						error: errorMsg,
+						success: false,
+						data: originalFormData
+					});
+				}
 			} else if (method === 'PUT') {
-				response = await fetch(
-					`${reapUrls.adminTestURL}${urlPath.testPath}/v1/testimonials/${id}`,
-					{
-						method: 'PUT',
-						body: dataToSend,
-						headers
-					}
-				);
+				response = await fetch(`${BASE_URL}/apis/v1/testimonials/${id}`, {
+					method: 'PUT',
+					body: dataToSend,
+					headers
+				});
 
-				if (!response.ok || !response.status == 200) {
-									return { error: 'Failed to submit form. Please try again!', data: originalFormData };
-								}
-					
+				if (!response.ok) {
+					let { errorMsg } = getErrorMessage({
+						status: response?.status,
+						action: userActions.EDIT,
+						module: resourceNames.OFFICIAL_TESTIMONIAL
+					});
+
+					return fail(response.status, {
+						error: errorMsg,
+						success: false,
+						data: originalFormData
+					});
+				}
 			} else {
 				throw new Error('Invalid method');
 			}
@@ -135,29 +150,34 @@ export const actions = {
 
 			// Check if image is a File and exists before attempting to upload
 			if (image instanceof File && image.size > 0) {
-
 				const formDataForImage = new FormData();
 				formDataForImage.append('file', image, image.name);
 
 				const responseForImage = await fetch(
-					`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/testimonials/${result.uuid}/image`,
+					`${BASE_URL}/apis/v1/testimonials/${result.uuid}/image`,
 					{
 						method: 'POST',
 						body: formDataForImage,
-						headers: headersForImageUpload,
+						headers: headersForImageUpload
 					}
 				);
 
-
-				if(!responseForImage?.ok){
-											return { error: 'Successfully updated official testimonial details but failed to update image. Please try again!', data: originalFormData }
-										}
+				if (!responseForImage?.ok) {
+					throw new Error(
+						`Successfully updated official testimonial details but failed to update image. Please try again! Status: ${responseForImage.status}`
+					);
+				}
 			}
 
 			return { success: true, data: result };
 		} catch (err) {
 			console.error(err);
-			return { error: 'Failed to submit form. Please try again!', data: originalFormData, status:response?.status };
+
+			return fail(response.status, {
+				error: err.message,
+				success: false,
+				data: originalFormData
+			});
 		}
 	}
 };

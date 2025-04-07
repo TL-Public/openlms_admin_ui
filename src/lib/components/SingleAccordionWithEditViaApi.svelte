@@ -26,7 +26,7 @@
 	let expanded = false;
 
 	function handleClick(e) {
-		if (e.target.id === 'accordion') expanded = !expanded;
+		expanded = !expanded;
 	}
 
 	function handleEdit() {
@@ -56,7 +56,7 @@
 				aria-controls="accordion-0"
 				id="accordion"
 				aria-expanded="false"
-				on:click|stopPropagation={(e) => handleClick(e)}
+				on:click={(e) => handleClick(e)}
 				on:keydown={(e) => {
 					if (e.key !== ' ' || e.key !== 'Enter') return;
 					handleClick(e);
@@ -103,7 +103,7 @@
 							</button>
 						{/if}
 						{#if deleteIcon}
-							<button on:click={handleDeleteButtonClick} class="flex items-center">
+							<button on:click|stopPropagation={handleDeleteButtonClick} class="flex items-center">
 								<Delete stroke="#FF6A1F" />
 							</button>
 						{/if}

@@ -11,8 +11,12 @@
 	import { goto } from '$app/navigation';
 	import ToastMessage from '$lib/components/ToastMessage.svelte';
 	import { page } from '$app/stores';
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, onDestroy } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
+	import {roles} from '$lib/config.js'
+	import {userDetails} from '/src/routes/store.js'
+	import { checkActionPermission } from '$lib/utils/helper.js'
+	import {moduleNames, actionNames} from '$lib/data.js'
 
 	export let courseCode;
 	export let chaptersData = [];
@@ -36,17 +40,29 @@
 	let hashRouteId = '';
 	let accordionRef = {};
 	let isModalOpen = false;
+	let permissionsObject ={
+	showChapterEditIcon : false,
+	showChapterDeleteIcon : false,
+	showChapterAddIcon:false,
+	allowReorderChapter : false
+	}
 
-	$: chaptersList = chaptersData?.flatMap((chapter) => {
-		if (!chapter.uuid) return []; // Return early if uuid is missing
-		return chapter.translations
-			.filter((translation) => translation.languageCode === 'en')
-			.map((translation) => ({
-				name: translation.title,
-				id: chapter.uuid,
-				videos: chapter?.videos
-			}));
-	});
+	$: totalVideos = chaptersData?.reduce((total, chapter) => {
+    return total + (chapter?.videos?.length || 0);
+  }, 0);
+
+
+	$: chaptersList =
+		chaptersData?.flatMap((chapter) => {
+			if (!chapter.uuid || !chapter.translations) return []; // Return early if uuid is missing
+			return chapter?.translations
+				.filter((translation) => translation?.languageCode === 'en')
+				.map((translation) => ({
+					name: translation?.title,
+					id: chapter?.uuid,
+					videos: chapter?.videos
+				}));
+		}) || [];
 	$: error = chaptersData?.error ? true : false;
 
 	// --------Functions to update chapters after manipulations like move, add and delition ----------
@@ -89,6 +105,8 @@
 		let newVideo = e.detail.newVideo;
 		chaptersData[chapterIndex]?.videos?.push(newVideo);
 		chaptersData = chaptersData;
+		// chapterErrorMessage.set('');
+		// chapterSuccessMessage.set(`Successully moved the video - "${e.detail.newVideo?.name}".`);
 	}
 
 	function handleChapterUpdationAfterVideoAddition(e) {
@@ -123,12 +141,12 @@
 	// ---------- Functions for chapter addition, edit and delete -----------------
 	function handleAddChapterModal() {
 		showAddChapterModal = true;
-		isModalOpen=true
+		isModalOpen = true;
 	}
 
 	function handleCancelSubmissionChapterAddition() {
 		showAddChapterModal = false;
-		isModalOpen=false
+		isModalOpen = false;
 	}
 
 	function handleAddChapter(e) {
@@ -147,7 +165,7 @@
 
 	function handleDeleteChapterModal(e) {
 		viewDeleteModal = true;
-		isModalOpen=true
+		isModalOpen = true;
 		let selectedChapterForDeletion = chaptersData?.find((chapter) => chapter?.uuid === e.detail);
 
 		const englishTranslation = selectedChapterForDeletion?.translations.find(
@@ -165,7 +183,7 @@
 	function handleCancelChapterDeletion() {
 		deleteTextInput = '';
 		viewDeleteModal = false;
-		isModalOpen=false
+		isModalOpen = false;
 	}
 
 	function handleChapterDeletion(e) {
@@ -184,7 +202,7 @@
 	//---------------Drag and drop functions---------------------
 	function dragStart(event, index) {
 		// If any modal is open the drag events in the background are restricted
-		if(isModalOpen) return
+		if (isModalOpen) return;
 		event.target.style.cursor = 'grab';
 		draggedIndex = index;
 
@@ -193,7 +211,7 @@
 	}
 
 	function dragOver(event) {
-		if(isModalOpen) return
+		if (isModalOpen) return;
 		event.preventDefault();
 		event.target.style.cursor = 'grab';
 
@@ -214,87 +232,56 @@
 		}
 	}
 
-	async function drop(event, index) {
-		// If any modal is open the drag events in the background are restricted
-		if(isModalOpen) return
-		const draggedItem = chaptersData[draggedIndex];
-		const targetItem = chaptersData[index];
-		const targetIndex = index;
-		const draggedItemTitle = draggedItem?.translations?.find(
-			(item) => item?.languageCode === 'en'
-		)?.title;
-		const targetItemTitle = targetItem?.translations?.find(
-			(item) => item?.languageCode === 'en'
-		)?.title;
+	async function drop(event, index) { 
+    if (isModalOpen) return;
 
-		// Swap the orderNumbers between dragged and target
-		const draggedOrderNumber = draggedItem.orderNumber;
-		const targetOrderNumber = targetItem.orderNumber;
+    let rearrangedArray = [...chaptersData]; // Clone the array
+    const draggedItem = rearrangedArray[draggedIndex];
 
-		draggedItem.orderNumber = targetOrderNumber;
-		targetItem.orderNumber = draggedOrderNumber;
+    // Remove the dragged item
+    rearrangedArray.splice(draggedIndex, 1);
 
-		// Prepare the reordered data for just the two affected chapters
-		const reorderedChaptersData = {
-			chapters: [
-				{
-					uuid: draggedItem.uuid,
-					orderNumber: draggedItem.orderNumber
-				},
-				{
-					uuid: targetItem.uuid,
-					orderNumber: targetItem.orderNumber
-				}
-			]
-		};
+    // Insert the dragged item at the target index
+    rearrangedArray.splice(index, 0, draggedItem);
 
-		let rearrangedArray = [...chaptersData]; // Create a copy of the original array
+    // Update order numbers sequentially
+    rearrangedArray.forEach((item, idx) => {
+        item.orderNumber = idx + 1; // Assuming orderNumber is 1-based
+    });
 
-		// Remove the dragged item from its original position
-		rearrangedArray.splice(draggedIndex, 1); // Remove the dragged item
+    chaptersData = rearrangedArray;
 
-		// Insert the dragged item at the new target index
-		rearrangedArray.splice(targetIndex, 0, draggedItem);
+    // Prepare reordered data for API
+    const reorderedChaptersData = {
+        chapters: rearrangedArray.map(({ uuid, orderNumber }) => ({ uuid, orderNumber }))
+    };
 
-		chaptersData = rearrangedArray;
 
-		// Prepare data to send to the API
+    try {
+        const response = await fetch(`/apis/courses/details/${courseUuid}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reorderedChaptersData)
+        });
 
-		try {
-			const response = await fetch(`/apis/courses/details/${courseUuid}`, {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(reorderedChaptersData)
-			});
-			if (!response.ok) {
-				throw new Error('Failed to reorder chapters ');
-			}
+        if (!response.ok) throw new Error('Failed to reorder chapters');
 
-			let result = await response.json();
+        const result = await response.json();
 
-			if (!result.error) {
-				chapterErrorMessage.set('');
-				chapterSuccessMessage.set(
-					`Successully reordered chapters - "${draggedItemTitle}" and "${targetItemTitle}".`
-				);
-			} else {
-				chapterSuccessMessage.set('');
-				chapterErrorMessage.set(
-					`Failed to reorder chapters - "${draggedItemTitle}" and "${targetItemTitle}".`
-				);
-				throw new Error('Error reordering chapters	');
-			}
+        if (!result.error) {
+            chapterSuccessMessage.set('Chapters reordered successfully.');
+        } else {
+            throw new Error('API error');
+        }
+    } catch (error) {
+        console.error(error);
+        chaptersData = [...originalChaptersData]; // Revert on failure
+        chapterErrorMessage.set('Failed to reorder chapters.');
+    }
 
-			// If successful, the state remains as is
-		} catch (error) {
-			// If API call fails, revert to the original state
-			chaptersData = [...originalChaptersData];
-		}
-		chaptersData = chaptersData;
-		draggedIndex = null;
-	}
+    draggedIndex = null;
+}
+
 
 	// ----------------General Functions---------------
 	// Helper function to get the title based on language code
@@ -346,6 +333,34 @@
 		isModalOpen = false;
 	}
 
+	function roleBasedAcessSetting(){
+		if(!$userDetails?.role) return
+		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES, actionNames?.EDIT_CHAPTER)){
+			permissionsObject.showChapterEditIcon=true
+		} else{
+			permissionsObject.showChapterEditIcon=false	
+
+		}
+		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES, actionNames?.ADD_CHAPTER)){
+			permissionsObject.showChapterAddIcon=true	
+		} else{
+			permissionsObject.showChapterAddIcon=false	
+
+		}
+		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.DELETE_CHAPTER)){
+			permissionsObject.showChapterDeleteIcon=true	
+		} else{
+			permissionsObject.showChapterDeleteIcon=false	
+
+		}
+		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.REORDER_CHAPTER)){
+			permissionsObject.allowReorderChapter=true	
+		} else{
+			permissionsObject.allowReorderChapter=false	
+
+		}
+		}
+
 	onMount(() => {
 		hashRouteId = $page.url.hash ? $page.url.hash.slice(1) : '';
 		if (hashRouteId && accordionRef[hashRouteId]?.handleAccordionOpen) {
@@ -353,12 +368,30 @@
 		} else {
 			console.error(`AccordionRef for hashRouteId ${hashRouteId} not found.`);
 		}
+
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe(); 
+    });
+
+	onDestroy(() => {
+		chapterErrorMessage.set('')
+		chapterSuccessMessage.set('')
 	});
+
 </script>
 
 <h2 class="text-darkGray font-semibold mb-4">
 	Chapters ({chaptersData?.length ? chaptersData?.length : 0})
 </h2>
+<h2 class="text-darkGray font-medium text-sm  mb-2">
+	Total Videos: {totalVideos || '-'}
+</h2>
+
 {#if $chapterSuccessMessage}
 	<div class="mb-2">
 		<!-- <SuccessMessage
@@ -393,7 +426,7 @@
 		{#each chaptersData as chapterData, index (chapterData?.uuid)}
 			<div
 				class="w-full mb-2 lg:mb-4"
-				draggable={!isModalOpen}
+				draggable={!isModalOpen && permissionsObject?.allowReorderChapter}
 				id={chapterData?.uuid}
 				on:dragstart={(event) => dragStart(event, index)}
 				on:dragover={dragOver}
@@ -411,9 +444,9 @@
 					uuid={chapterData?.uuid}
 					videosCount={chapterData?.numberOfVideos}
 					orderNumber={chapterData?.orderNumber}
-					draggable={!isModalOpen}
-					editIcon={true}
-					deleteIcon={true}
+					draggable={!isModalOpen && permissionsObject.allowReorderChapter}
+					editIcon={permissionsObject.showChapterEditIcon}
+					deleteIcon={permissionsObject.showChapterDeleteIcon}
 					{courseUuid}
 					{index}
 					secondInputField={true}
@@ -427,7 +460,6 @@
 						id="innerAccordion"
 					>
 						<VideoList
-							on:handleDeleteVideoFromCurrentChaptersAdd={handleDeleteVideoFromCurrentChaptersAdd}
 							on:handleChapterUpdationAfterVideoAddition={handleChapterUpdationAfterVideoAddition}
 							on:handleChapterAfterVideoDeletion={handleChapterAfterVideoDeletion}
 							on:handleVideoDeletionInVideoMoveFunctionality={handleVideoDeletionInVideoMoveFunctionality}
@@ -448,12 +480,14 @@
 			</div>
 		{/each}
 	{/if}
+	{#if permissionsObject.showChapterAddIcon}
 	<div class="rounded-lg border-dashed border-2 border-gray-70 p-3">
 		<div class="flex gap-2">
 			<Button btnType="primary" on:click={handleAddChapterModal}>+ Add Chapter</Button>
 			<Button btnType="secondary" on:click={handleBulkUploadChapters}>Bulk Upload</Button>
 		</div>
 	</div>
+	{/if}
 {:else}
 	<ErrorMessage error={'Chapters not found'} />
 {/if}

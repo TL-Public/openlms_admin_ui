@@ -1,11 +1,19 @@
 <script>
 	import ReviewForm from '$lib/components/ReviewForm.svelte';
 	import Edit from '$lib/svgComponents/Edit.svelte';
+  import { rolesList, userTypes } from '$lib/data.js';
+	import { userDetails } from '/src/routes/store.js';
+	import { onMount } from 'svelte';
+	import { checkActionPermission } from '$lib/utils/helper.js';
+	import { moduleNames, actionNames, roleIds } from '$lib/data.js';
+	import PasswordResetPopUp from '$lib/users/PasswordResetPopUp.svelte'
+  import { page } from '$app/stores';
 
 	export let traineeDetailsData = {};
   export let displayImage;
-
+  
   let showMore = false;
+  let showPasswordResetPopup=false
   $: firstLetter = traineeDetailsData?.candidateName ? traineeDetailsData.candidateName.charAt(0).toUpperCase() : '?';
 
   function formatDate(dateString) {
@@ -47,6 +55,14 @@
 
     return formatted;
 }
+
+function handlePasswordReset(){
+		showPasswordResetPopup=true
+	}
+
+function handleCancel(){
+		showPasswordResetPopup=false
+	}
 
 </script>
 
@@ -91,6 +107,9 @@
               </span>
             </div>
           {/each}
+          {#if Number($userDetails?.role) !== Number(roleIds?.TRAINER)}
+			<div class="text-sm mb-4 text-blue-500 underline hover:cursor-pointer hover:text-blue-600" on:click={handlePasswordReset}> Reset Password</div>
+			{/if}
         </div>
       </div>
     </div>
@@ -184,4 +203,12 @@
       </button>
     </div>
   </div>
+
+  {#if showPasswordResetPopup}
+	<PasswordResetPopUp 
+    endPoint={`/apis/trainees/${traineeDetailsData?.uuid}/passwordReset`}
+    resetOwnPassword={false}
+		userType={userTypes?.TRAINEE}
+	on:handleCancelSubmission={handleCancel}/>
+{/if}
     

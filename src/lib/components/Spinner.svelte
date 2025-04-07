@@ -1,28 +1,30 @@
 <script>
-    export let size = 16; // Default size
-    export let color = "#007bff"; // Default color
-  </script>
-  
-  <div
-    style="
-    display: inline-block;
-      width: {size}px;
-      height: {size}px;
-      border: {size / 8}px solid #ccc;
-      border-top-color: {color};
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    "
-  ></div>
-  
-  <style>
-    @keyframes spin {
-      from {
-        transform: rotate(0deg);
-      }
-      to {
-        transform: rotate(360deg);
-      }
-    }
-  </style>
-  
+    export let size = 16; 
+    export let color = "#007bff"; 
+    export let overlay = false; // If true, will show as overlay
+</script>
+
+{#if overlay}
+    <div
+        class="fixed inset-0 bg-gray-300 bg-opacity-50 flex items-center justify-center z-50 pointer-events-auto"
+        on:wheel|preventDefault
+        on:touchmove|preventDefault
+    >
+        <div 
+            class="animate-spin rounded-full border-4 border-gray-300"
+            style="width: {size}px; height: {size}px; border-top-color: {color};"
+        ></div>
+    </div>
+
+    <!-- Prevent scrolling on the main content -->
+    <style>
+        body {
+            overflow: hidden;
+        }
+    </style>
+{:else}
+    <div 
+    class="inline-block animate-spin rounded-full border-[3px] border-gray-300 border-t-transparent"
+    style="width: {size}px; height: {size}px; border-top-color: {color};"
+></div>
+{/if}

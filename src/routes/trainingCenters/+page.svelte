@@ -14,6 +14,11 @@
 	import { message } from '/src/routes/trainingCenters/tcStore.js';
 	import Button from '$lib/components/Button.svelte';
 	import { onDestroy } from 'svelte';
+	import { userDetails } from '/src/routes/store.js';
+	import { checkActionPermission, combineErrorMessages } from '$lib/utils/helper.js';
+	import { moduleNames, actionNames, resourceNames } from '$lib/data.js';
+	import { onMount } from 'svelte';
+	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
 
 	export let data;
 
@@ -24,7 +29,7 @@
 	let rsetiName = '';
 	let rsetiId = '';
 	let rsetiUUID = '';
-	
+
 	let email = '';
 	let tableActionName = '';
 	let phone = '';
@@ -33,24 +38,22 @@
 	let deleteTextInput = '';
 	let deletionConfirmText = 'Please delete this rseti';
 	let deleteTextConfirmation = false;
-	// Extracting state filter option list from stateData
-	let stateFilterOptionList = [
-		{ title: String_Constants.ALL_STATES, uuid: 0 },
-		...stateData
-		.filter((state) => state.languageCode === 'en' && state.name && state.extId) // Filter by languageCode and valid name/extId
-		.map((state) => ({
-			title: state.name.trim(),
-			uuid: state.extId
-		}))
-	];
-	
+	let permissionsObject = {
+		allowAddition: false
+	};
+
 	let fundingFilterOptionList = [{ title: String_Constants.ALL_FUNDING_GROUPS, uuid: 0 }];
 	let stateFilterValue = stateData?.[0]?.title ?? '';
-	
+
 	let fundingFilterValue = fundingFilterOptionList[0].title;
 	let selectedLanguage = 'en';
-	$:error = tcData?.error ? tcData?.error : '';
-	
+
+	//primary data is the most important data on the page. Error in loading this data means, the page itself will be shown as an error page
+	$: primaryDataError = tcData?.error ? tcData?.error : '';
+
+	//data other than primary data is considered secondary errors - shown at top of the page.
+	$: secondaryErrors = combineErrorMessages(stateData?.error, bankData?.error);
+
 	function sendSearchValueToDatatable(e) {
 		searchValue = e.detail;
 	}
@@ -58,17 +61,19 @@
 	// ... existing imports and variables
 
 	function updateTableDataLanguage(language) {
+		if (tcData.error) return;
 		tableData = [];
 		tcData?.forEach((tc) => {
-			const fundedByBank = bankData.find((bank) => bank.uuid === tc?.bankId)?.name || '-';
+			const fundedByBank = bankData?.find((bank) => bank.uuid === tc?.bankId)?.name || '-';
 			const translation = tc?.translations?.find(
-				(t) => t?.languageCode?.toLowerCase().trim() === language?.toLowerCase().trim()
+				(t) => t?.languageCode?.toLowerCase()?.trim() === language?.toLowerCase().trim()
 			);
 
-			const stateName =
-				stateData.find(
-					(state) => parseInt(state.extId) === tc?.stateId && state.languageCode === language
-				)?.name || '-';
+			const stateName = !stateData.error
+				? stateData.find(
+						(state) => parseInt(state?.extId) === tc?.stateId && state?.languageCode === language
+					)?.name
+				: '-';
 
 			if (translation) {
 				// Ensure we only include translations for the selected language
@@ -111,11 +116,11 @@
 		totalCourses = e.detail.actionData.totalCourses;
 		traineesGraduated = e.detail.actionData.traineesGraduated;
 
-		if(tableActionName==='view'){
-			goto(`trainingCenters/${rsetiUUID}/details`)
+		if (tableActionName === 'view') {
+			goto(`trainingCenters/${rsetiUUID}/details`);
 		}
-		if(tableActionName==='edit'){
-			goto(`trainingCenters/${rsetiUUID}/details/edit`)
+		if (tableActionName === 'edit') {
+			goto(`trainingCenters/${rsetiUUID}/details/edit`);
 		}
 	}
 
@@ -149,7 +154,7 @@
 				);
 			}
 			rsetiName = deletedRsetiName.name;
-			message.set(`Successfully deleted the training center "${rsetiName}"."`);
+			message.set(`Successfully deleted the training center "${rsetiName}".`);
 		}
 		invalidate('rseti:all-rsetis');
 	}
@@ -187,23 +192,7 @@
 		sortingOrder: null
 	};
 
-	let actionConfigObject = [
-		{
-			actionName: 'view',
-			actionIconName: 'visibility',
-			modal: false
-		},
-		{
-			actionName: 'edit',
-			actionIconName: 'edit',
-			modal: false
-		},
-		{
-			actionName: 'delete',
-			actionIconName: 'delete',
-			modal: true
-		}
-	];
+	let actionConfigObject = [];
 
 	function handleGoToCourse() {
 		goto('/trainingCenters/add');
@@ -219,9 +208,63 @@
 		message.set('');
 	}
 
-	onDestroy(()=>{
+	onDestroy(() => {
 		message.set('');
-	})
+	});
+
+	// ---------------------------------- Role based functions --------------------------------
+	function roleBasedAcessSetting() {
+		if (!$userDetails?.role) return;
+		if (
+			checkActionPermission($userDetails?.role, moduleNames?.TRAINING_CENTERS, actionNames?.DETAILS)
+		) {
+			let tempObj = {
+				actionName: 'view',
+				actionIconName: 'visibility',
+				modal: false
+			};
+			actionConfigObject.push(tempObj);
+		}
+
+		if (
+			checkActionPermission($userDetails?.role, moduleNames?.TRAINING_CENTERS, actionNames?.EDIT)
+		) {
+			let tempObj = {
+				actionName: 'edit',
+				actionIconName: 'edit',
+				modal: false
+			};
+			actionConfigObject.push(tempObj);
+		}
+
+		if (
+			checkActionPermission($userDetails?.role, moduleNames?.TRAINING_CENTERS, actionNames?.DELETE)
+		) {
+			let tempObj = {
+				actionName: 'delete',
+				actionIconName: 'delete',
+				modal: true
+			};
+			actionConfigObject.push(tempObj);
+		}
+
+		if (checkActionPermission($userDetails?.role, moduleNames.TRAINING_CENTERS, actionNames?.ADD)) {
+			permissionsObject.allowAddition = true;
+		} else {
+			permissionsObject.allowAddition = false;
+		}
+	}
+
+	onMount(() => {
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				actionConfigObject=[]
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe(); // Cleanup subscription
+	});
 </script>
 
 {#if $message}
@@ -229,6 +272,12 @@
 		successMessage={$message}
 		on:handleSuccessMessageClose={handleSuccesMessageClose}
 	/>
+{/if}
+
+{#if secondaryErrors}
+	<div class=" mb-4">
+		<SubmissionErrorMessage errorMessage={secondaryErrors} />
+	</div>
 {/if}
 
 <div class="mb-8 mt-4">
@@ -259,10 +308,12 @@
 			placeholder={'Search by name or state'}
 			showSearchButton={false}
 		/>
-		<div class="flex gap-2 ml-auto">
-			<Button btnType="secondary" on:click={handleBulkUploadTrainingCenters}>Bulk Upload</Button>
-			<Button on:click={handleGoToCourse}>+ Training Center</Button>
-		</div>
+		{#if permissionsObject?.allowAddition}
+			<div class="flex gap-2 ml-auto">
+				<Button btnType="secondary" on:click={handleBulkUploadTrainingCenters}>Bulk Upload</Button>
+				<Button on:click={handleGoToCourse}>+ Training Center</Button>
+			</div>
+		{/if}
 	</div>
 	<ListingTable
 		{tableHeaderDisplay}
@@ -270,7 +321,7 @@
 		{searchValue}
 		{tableData}
 		on:tableActionClick={handleTableAction}
-		{error} 
+		error={primaryDataError}
 		rowHeight={'compact'}
 		bind:sortAccordingTo
 	/>
@@ -279,7 +330,7 @@
 {#if viewModal}
 	<DeletionModalViaAPI
 		id={rsetiUUID}
-		name={rsetiName}
+		module={resourceNames.TRAINING_CENTER}
 		code={rsetiId}
 		heading={`About to delete the rseti - ${rsetiName}`}
 		para={'Are you sure you want to delete the rseti? This action cannot be undone.'}

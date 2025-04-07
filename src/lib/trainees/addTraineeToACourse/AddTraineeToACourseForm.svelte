@@ -8,6 +8,11 @@
 	import Button from '$lib/components/Button.svelte';
 	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
 	import SearchableComboBox from '$lib/components/SearchableComboBox.svelte';
+	import { handleRedirection } from '$lib/utils/helper.js';
+	import { getErrorMessage } from '$lib/utils/helper.js';
+	import { resourceNames, userActions } from '$lib/data.js';
+	import { onDestroy } from 'svelte';
+	import {showLoadingSpinner} from '/src/routes/store.js'
 
 	export let method = 'POST';
 	export let rsetiList = [];
@@ -18,32 +23,40 @@
 	export let selectedRsetiUuid = '';
 	export let selectedCourseName = '';
 	export let selectedCourseUuid = '';
+	export let coursesList = [];
+
 	let isSubmitting = false;
 	let creationError = '';
 	let errorMessage = '';
 	let validationErrors = { rseti: false, course: false };
 	let validationMessage = {
 		course: 'Please select a course',
-		rseti: 'Please select an RSETI',
+		rseti: 'Please select an RSETI'
 	};
-	let coursesList = [];
 	let traineeUuid = traineeDetailsData?.uuid || '';
+	const url = $page.url;
 
 	// Prepare payload for submission
 	export let dataToSend = {
 		traineeUuid,
-		enrollmentDate:''
+		enrollmentDate: ''
 	};
 
-	$:if(method==='PUT'){
-		dataToSend.enrollmentDate = dataToSend.enrollmentDate? dataToSend.enrollmentDate :''
+	$: if (method === 'PUT') {
+		dataToSend.enrollmentDate = dataToSend.enrollmentDate ? dataToSend.enrollmentDate : '';
+	}
+
+	$: if (isSubmitting === true){
+		showLoadingSpinner.set(true)
+	} else {
+		showLoadingSpinner.set(false)
 	}
 
 	// Fetch courses when RSETI is selected
-	$: if (selectedRsetiUuid && method !=='PUT') {
+	$: if (selectedRsetiUuid && method !== 'PUT') {
 		handleClearCourseSelection();
 		coursesList = [];
-		validationErrors={}
+		validationErrors = {};
 		fetchCourses(selectedRsetiUuid);
 	}
 
@@ -52,13 +65,24 @@
 			errorMessage = '';
 			isSubmitting = true;
 
-			const response = await fetch(`/apis/trainingCenters/courses/${selectedRsetiUuid}`, {
+			const response = await fetch(`/apis/trainingCenters/${selectedRsetiUuid}/courses`, {
 				method: 'GET',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json' }
 			});
 
 			if (!response.ok) {
-				throw new Error('Failed to fetch courses of the RSETI');
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: response?.status,
+					action: userActions.LIST,
+					module: resourceNames.TRAINING_CENTER_COURSE
+				});
+
+				if (redirectUser) {
+					handleRedirection(response.status, $page.url.pathname, $page.url.search);
+				}
+
+				validationErrors.course = errorMsg;
+				return;
 			}
 
 			const result = await response.json();
@@ -85,18 +109,18 @@
 
 		return {
 			id: course.uuid,
-			title: `${title} (${from} - ${to})`,
+			title: `${title} (${from} - ${to})`
 		};
 	}
 
 	function handleClearCourseSelection() {
 		selectedCourseName = null;
 		selectedCourseUuid = null;
-		validationErrors.course = false;
+		validationErrors.course = '';
 		errorMessage = '';
 	}
 
-	function handleClearRsetiSelection(){
+	function handleClearRsetiSelection() {
 		selectedRsetiUuid = '';
 		selectedRsetiName = '';
 		selectedCourseName = '';
@@ -109,82 +133,95 @@
 	function validateForm() {
 		validationErrors = {
 			rseti: !selectedRsetiUuid,
-			course: !selectedCourseUuid,
+			course: !selectedCourseUuid
 		};
 		return !validationErrors.rseti && !validationErrors.course;
 	}
 
-
 	function handleEnhance({ formElement, formData, action, cancel, submitter }) {
-		let postData={}
+		let postData = {};
+		errorMessage=''
 		const { search } = action;
 
+		if (search == '?/final') {
+			isSubmitting = true;
+		}
+
 		if (!validateForm()) {
+			isSubmitting=false
 			cancel();
 			return;
 		}
-	
-			postData = {
-				traineeUuid: traineeUuid,
-				enrollmentDate: dataToSend.enrollmentDate,
-			}
-	
+
+		postData = {
+			traineeUuid: traineeUuid,
+			enrollmentDate: dataToSend.enrollmentDate
+		};
 
 		formData.set('method', method);
 		formData.set('uuid', selectedCourseUuid);
 		formData.set('postData', JSON.stringify(postData));
 
-
 		return async ({ result, update }) => {
-			
 			await result;
 			if (search == '?/final') {
 				isSubmitting = true;
-				if (!Object.keys(result?.data)?.includes('error')) {
+
+				if (result.type == 'success') {
 					if (method === 'POST') {
-						goto(
-							`/trainees/${result?.data?.resultObject?.traineeUuid}/details`,
-							{
-								invalidateAll: true
-							}
+						goto(`/trainees/${result?.data?.resultObject?.traineeUuid}/details`, {
+							invalidateAll: true
+						});
+						message.set(
+							`Successfully enrolled ${traineeDetailsData?.candidateName} in "${selectedCourseName}" at "${selectedRsetiName}".`
 						);
-						message.set(`Successfully enrolled ${traineeDetailsData?.candidateName} in "${selectedCourseName}" at "${selectedRsetiName}".`);
 					}
 					if (method === 'PUT') {
-						goto(
-							`/trainees/${result?.data?.resultObject?.traineeUuid}/details`,
-							{
-								invalidateAll: true
-							}
-						);
+						goto(`/trainees/${result?.data?.resultObject?.traineeUuid}/details`, {
+							invalidateAll: true
+						});
 						message.set(
 							`Successfully updated the course details for ${traineeDetailsData?.candidateName}, enrolled in "${selectedCourseName}" at "${selectedRsetiName}".`
 						);
 					}
-				} else {
+				}
+
+				if (result.type == 'failure') {
 					const errorMsg =
 						method === 'POST'
 							? `Failed to enroll ${traineeDetailsData?.candidateName} in "${selectedCourseName}" at"${selectedRsetiName}". Please try again.`
 							: `Failed to update the course details of ${traineeDetailsData?.candidateName} in "${selectedCourseName}" at "${selectedRsetiName}". Please try again.`;
-					creationError = result?.data?.error ? result?.data?.error : errorMsg;
+
 					isSubmitting = false;
+
+					if (result?.data?.error) {
+						creationError = result?.data?.error ? result?.data?.error : errorMsg;
+						// all errors except 401 are handled in page.server.js - which are shown as message at top of the page.
+						if (result?.status === 401) {
+							handleRedirection(result.status, url.pathname, url.search);
+						}
+					}
 				}
 			}
 		};
 	}
 
 	function formatDate(date) {
-    if (!date) return '';
-    const year = date.getFullYear().toString().slice(-2); // Extract last two digits of the year
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // Month as 2-digit
-    const day = String(date.getDate()).padStart(2, '0'); // Day as 2-digit
-    return `${year}-${month}-${day}`;
-  }
+		if (!date) return '';
+		const year = date.getFullYear().toString().slice(-2); // Extract last two digits of the year
+		const month = String(date.getMonth() + 1).padStart(2, '0'); // Month as 2-digit
+		const day = String(date.getDate()).padStart(2, '0'); // Day as 2-digit
+		return `${year}-${month}-${day}`;
+	}
 
-  function handleDateChange(event) {
-    const selectedDate = new Date(event.target.value);
-    dataToSend.enrollmentDate = formatDate(selectedDate);
-  }
+	function handleDateChange(event) {
+		const selectedDate = new Date(event.target.value);
+		dataToSend.enrollmentDate = formatDate(selectedDate);
+	}
+
+	onDestroy(()=>{
+		showLoadingSpinner.set(false)
+	})
 </script>
 
 <div>
@@ -194,14 +231,10 @@
 		</div>
 	{/if}
 
-	<form
-		method="post"
-		action="/coursesAdd"
-		class="w-full md:w-1/2 form"
-	use:enhance={handleEnhance}
-
-	>
-		<h1 class="mb-2 heading-L">{method === 'POST' ? 'Enroll Trainee in a Course' : 'Update Trainee Course Details'}</h1>
+	<form method="post" action="/coursesAdd" class="w-full md:w-1/2 form" use:enhance={handleEnhance}>
+		<h1 class="mb-2 heading-L">
+			{method === 'POST' ? 'Enroll Trainee in a Course' : 'Update Trainee Course Details'}
+		</h1>
 		<hr class="horizontal-line mt-1 mb-4" />
 		<div class="space-y-6">
 			<h2 class="mb-4 heading-L">
@@ -209,14 +242,14 @@
 			</h2>
 
 			<InputField
-						label={'Enrollment Date'}
-						placeholder={'Enter Enrollemnt Date'}
-						name={'enrollmentDate'}
-						type='date'
-						required
-						bind:value={dataToSend.enrollmentDate}
-						on:change={handleDateChange}
-					/>
+				label={'Enrollment Date'}
+				placeholder={'Enter Enrollemnt Date'}
+				name={'enrollmentDate'}
+				type="date"
+				required
+				bind:value={dataToSend.enrollmentDate}
+				on:change={handleDateChange}
+			/>
 
 			<SearchableComboBox
 				options={rsetiList}
@@ -225,7 +258,7 @@
 				validationErrors={validationErrors.rseti ? validationMessage.rseti : ''}
 				bind:selectedItemName={selectedRsetiName}
 				bind:selectedItemId={selectedRsetiUuid}
-				disabled={ method==='PUT'}
+				disabled={method === 'PUT'}
 				on:handleDispatchFilterData={handleClearRsetiSelection}
 			/>
 
@@ -236,11 +269,9 @@
 				validationErrors={validationErrors.course ? validationMessage.course : ''}
 				bind:selectedItemName={selectedCourseName}
 				bind:selectedItemId={selectedCourseUuid}
-				disabled={!selectedRsetiUuid || method==='PUT'}
+				disabled={!selectedRsetiUuid || method === 'PUT'}
 				on:handleDispatchFilterData={handleClearCourseSelection}
-
 			/>
-
 		</div>
 
 		<div class="flex justify-end gap-4 mt-8 flex-wrap">
@@ -248,14 +279,9 @@
 				type="button"
 				btnType="secondary"
 				on:click={() => window.history.back()}
-				disabled={isSubmitting}
-				>{'Cancel'}</Button
+				disabled={isSubmitting}>{'Cancel'}</Button
 			>
-			<Button
-				btnType="primary"
-				type="submit"
-				disabled={isSubmitting}
-				formaction="?/final"
+			<Button btnType="primary" type="submit" disabled={isSubmitting} formaction="?/final"
 				>{'Submit'}</Button
 			>
 		</div>

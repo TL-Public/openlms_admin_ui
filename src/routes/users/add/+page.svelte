@@ -1,43 +1,55 @@
 <script>
 	import { page } from '$app/stores';
 	import AddUserForm from '$lib/users/addUser/AddUserForm.svelte';
-	let route = $page.route.id;
-	let params = $page.params;
+	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
+	import { combineErrorMessages } from '$lib/utils/helper.js';
+
 	let userData = {};
-	export let form;
+
 	export let data;
 	let { rsetiData, stateData } = data;
 
+	//primary data is the most important data on the page. Error in loading this data means, the page itself will be shown as an error page
+	// in add page, there is no primary data to be loaded.
+
+	//data other than primary data is considered secondary errors - shown at top of the page.
+	$: secondaryErrors = combineErrorMessages(stateData?.error, rsetiData?.error);
+
 	$: if (!rsetiData?.error) {
-		rsetiData = rsetiData?.flatMap((rseti) => {
-			if (!rseti?.uuid || rseti?.uuid === '0') return []; // Return early if uuid is missing
-			return rseti?.translations
-				.filter((translation) => translation?.languageCode === 'en')
-				.map((translation) => ({
-					name: translation?.name,
-					id: rseti?.uuid,
-					stateId: rseti?.stateId
-				}));
-		});
+		rsetiData =
+			rsetiData?.flatMap((rseti) => {
+				if (!rseti?.uuid || rseti?.uuid === '0' || !rseti.translations) return []; // Return early if uuid is missing
+				return rseti?.translations
+					.filter((translation) => translation?.languageCode === 'en')
+					.map((translation) => ({
+						name: translation?.name,
+						id: rseti?.uuid,
+						stateId: rseti?.stateId
+					}));
+			}) || [];
 	}
 
 	$: if (!stateData?.error) {
-		stateData = stateData?.flatMap((state) => {
-			return state.uuid != 0 && state.languageCode === 'en'
-				? [{ id: state.extId, name: state.name }]
-				: [];
-		});
+		stateData =
+			stateData?.flatMap((state) => {
+				return state.uuid != 0 && state.languageCode === 'en'
+					? [{ id: state?.extId, name: state?.name }]
+					: [];
+			}) || [];
 	}
 	function handleUserdata(event) {
 		userData = event.details;
 	}
 </script>
 
+{#if secondaryErrors}
+	<div class=" mb-4">
+		<SubmissionErrorMessage errorMessage={secondaryErrors} />
+	</div>
+{/if}
+
 <AddUserForm
-	{route}
-	{params}
 	on:userData={handleUserdata}
-	{form}
-	stateOptionList={stateData}
-	rsetiOptionList={rsetiData}
+	stateOptionList={stateData.error ? [] : stateData}
+	rsetiOptionList={rsetiData.error ? [] : rsetiData}
 />

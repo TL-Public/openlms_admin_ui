@@ -1,3 +1,8 @@
+import { BASE_URL } from '$lib/config';
+import { fail, redirect } from '@sveltejs/kit';
+import { getErrorMessage } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
+
 let originalFormData;
 let image;
 let payLoad;
@@ -37,7 +42,7 @@ async function preserveFormData({ request }) {
 	return { saved: true, formData: originalFormData };
 }
 
-async function saveFormData({ request, cookies }) {
+async function saveFormData({ request, cookies, url }) {
 	{
 		const data = payLoad;
 		const uuid = payLoad.uuid;
@@ -56,44 +61,44 @@ async function saveFormData({ request, cookies }) {
 		let response;
 		try {
 			if (method === 'POST') {
-				response = await fetch(
-					'http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/users',
-					{
-						method: 'POST',
-						body: dataToSend,
-						headers
-					}
-				);
+				response = await fetch(`${BASE_URL}/apis/v1/users`, {
+					method: 'POST',
+					body: dataToSend,
+					headers
+				});
 
-				if (!response.ok || !response.status == 201) {
-					if (response.status == 409)
-						return {
-							error: 'Failed to submit form, user credentials already exist. Please try again!',
-							data: originalFormData,
-							status: response.status
-						};
-					return {
-						error: 'Failed to submit form. Please try again!',
-						data: originalFormData,
-						status: response.status
-					};
+				if (!response.ok) {
+					let { errorMsg } = getErrorMessage({
+						status: response?.status,
+						action: userActions.ADD,
+						module: resourceNames.USERS
+					});
+
+					return fail(response.status, {
+						error: errorMsg,
+						success: false,
+						data: originalFormData
+					});
 				}
 			} else if (method === 'PUT') {
-				response = await fetch(
-					`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/users/${uuid}`,
-					{
-						method: 'PUT',
-						body: dataToSend,
-						headers
-					}
-				);
+				response = await fetch(`${BASE_URL}/apis/v1/users/${uuid}`, {
+					method: 'PUT',
+					body: dataToSend,
+					headers
+				});
 
-				if (!response.ok || !response.status == 200) {
-					return {
-						error: 'Failed to submit form. Please try again!',
-						data: originalFormData,
-						status: response.status
-					};
+				if (!response.ok) {
+					let { errorMsg } = getErrorMessage({
+						status: response?.status,
+						action: userActions.EDIT,
+						module: resourceNames.USERS
+					});
+
+					return fail(response.status, {
+						error: errorMsg,
+						success: false,
+						data: originalFormData
+					});
 				}
 			} else {
 				throw new Error('Invalid method');
@@ -105,31 +110,26 @@ async function saveFormData({ request, cookies }) {
 				const formDataForImage = new FormData();
 				formDataForImage.append('file', image, image.name);
 
-				const responseForImage = await fetch(
-					`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/users/${result.uuid}/image`,
-					{
-						method: 'POST',
-						body: formDataForImage,
-						headers: headersForImageUpload
-					}
-				);
+				const responseForImage = await fetch(`${BASE_URL}/apis/v1/users/${result.uuid}/image`, {
+					method: 'POST',
+					body: formDataForImage,
+					headers: headersForImageUpload
+				});
 
 				if (!responseForImage?.ok) {
-					return {
-						error: `Successfully ${method?.toLowerCase() === 'post' ? 'added' : 'edited'} user details but failed to ${method?.toLowerCase() === 'post' ? 'add' : 'edit'} image. Please try again. Status: ${responseForImage.status}`,
-						data: originalFormData
-					};
+					throw new Error(
+						`Successfully ${method?.toLowerCase() === 'post' ? 'added' : 'edited'} user details but failed to ${method?.toLowerCase() === 'post' ? 'add' : 'edit'} image. Please try again. Status: ${responseForImage.status}`
+					);
 				}
 			}
 
 			return { success: true, data: result, status: response?.status };
 		} catch (err) {
-			console.log('error is', err);
-			return {
-				error: 'Failed to submit form. Please try again!',
-				data: originalFormData,
-				status: response?.status
-			};
+			return fail(response.status, {
+				error: err.message,
+				success: false,
+				data: originalFormData
+			});
 		}
 	}
 }

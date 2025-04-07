@@ -11,7 +11,6 @@
 	import VideoPodSkeleton from '$lib/components/VideoPodSkeleton.svelte';
 	import Button from '$lib/components/Button.svelte';
 
-
 	export let data;
 
 	let videoList = [];
@@ -33,31 +32,35 @@
 	let dummyVideoPodDetails = new Array(4);
 	let loadingInVideos = true;
 	let coursesList;
+	let totalVideos;
+	let languageCounts = [];
 
 	$: if (!coursesData?.error) {
-		coursesList = coursesData?.flatMap((course) => {
-			if (!course.uuid) return []; // Return early if uuid is missing
-			return course.translations
-				.filter((translation) => translation.languageCode === 'en')
-				.map((translation) => ({
-					name: translation.title,
-					id: course.uuid,
-					courseCode: course?.courseCode,
-					videos: course?.videos,
-					chapters: course?.chapters
-				}));
-		});
+		coursesList =
+			coursesData?.flatMap((course) => {
+				if (!course.uuid || !course.translations) return []; // Return early if uuid is missing
+				return course.translations
+					.filter((translation) => translation?.languageCode === 'en')
+					.map((translation) => ({
+						name: translation?.title,
+						id: course?.uuid,
+						courseCode: course?.courseCode,
+						videos: course?.videos,
+						chapters: course?.chapters
+					}));
+			}) || [];
 	}
 
-
-$:{
-	if(coursesList){
-	filterOptions = [{
-		filterName:'Course',
-		filterValue:coursesList
-	}]
-}
-}
+	$: {
+		if (coursesList) {
+			filterOptions = [
+				{
+					filterName: 'Course',
+					filterValue: coursesList
+				}
+			];
+		}
+	}
 
 	async function handleFilter(event) {
 		// extracting the filter values from the event
@@ -98,9 +101,15 @@ $:{
 				return;
 			}
 
+			// Extract language counts from the API response
+			if (data.languageCounts && data.languageCounts.length > 0) {
+				languageCounts = data.languageCounts;
+			}
+
 			// Append new videos to the existing list
 			videoList = [...videoList, ...data.content];
 
+			totalVideos = data.page.totalElements;
 			totalPages = data.page.totalPages;
 			currentPage++;
 
@@ -153,12 +162,12 @@ $:{
 	/>
 </div> -->
 
-<div class="mb-6 mt-4">
+<h1 class="mb-4 font-semibold heading-L">Videos</h1>
+<div class="mb-6">
 	<VideoListingOverview />
 </div>
 
 <hr class="horizontal-line my-8" />
-
 
 {#if loadingInVideos}
 	<div class="grid sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-4 mt-4 mx-6 mb-4">
@@ -168,7 +177,7 @@ $:{
 	</div>
 {/if}
 
-{#if !loadingInVideos}
+<div class:hidden={loadingInVideos}>
 	<div class="mt-4 mb-4" class:min-h-40={!noVideos}>
 		{#if errorMessage}
 			<ErrorMessage error={errorMessage} />
@@ -178,9 +187,11 @@ $:{
 				showModuleFilter={noVideos ? false : true}
 				searchValue=""
 				showSearchBar={noVideos ? false : true}
-				showEditIcon={false}
-				showDeleteIcon={false}
+				showEditIcon={true}
+				showDeleteIcon={true}
+				totalVideos={totalVideos}
 				{filterOptions}
+				{languageCounts}
 				on:handleShowMoreButton={handleShowMoreButton}
 			/>
 		{/if}
@@ -194,12 +205,7 @@ $:{
 					? 'mb-2'
 					: 'mb-8'}"
 			>
-				<Button
-					disabled={isSubmitting}
-					on:click={fetchVideos}
-				>
-					Show More
-				</Button>
+				<Button disabled={isSubmitting} on:click={fetchVideos}>Show More</Button>
 			</div>
 		{:else if allVideosLoaded && !errorMessage}
 			<div class="flex justify-center mb-8 text-sm">
@@ -220,4 +226,4 @@ $:{
 			</a>to load remaining videos.
 		</p>
 	{/if}
-{/if}
+</div>

@@ -1,11 +1,12 @@
 import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
 
 export async function POST({ request }) {
 	let res;
 	try {
 		const body = await request.json();
 		res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/auth/signin`,
+			`${BASE_URL}/apis/v1/auth/signin`,
 			{
 				method: 'POST',
 				body: JSON.stringify(body),

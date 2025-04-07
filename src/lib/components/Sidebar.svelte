@@ -1,6 +1,13 @@
 <script>
 	import GoogleMatrialIcon from './GoogleMatrialIcon.svelte';
+	import { roles } from '$lib/config.js';
+	import { userDetails } from '/src/routes/store.js';
+	import { onMount } from 'svelte';
+	import { menuItems } from '$lib/data.js';
+
 	export let route = '';
+
+	let filteredSidebarList = [];
 
 	// this function checks which of the side bar is currently active
 	function compareRouteBase(route1, route2) {
@@ -21,48 +28,69 @@
 
 	let sidebarList = [
 		{
+			name: 'My Profile',
+			link: '/userProfile',
+			key: menuItems?.MY_PROFILE
+		},
+		{
 			name: 'Dashboard',
-			link: '/dashboard'
+			link: '/dashboard',
+			key: menuItems?.DASHBOARD
 		},
 		{
 			name: 'NAR',
-			link: '/nar'
+			link: '/nar',
+			key: menuItems?.NAR
 		},
 		{
 			name: 'States',
-			link: '/states'
+			link: '/states',
+			key: menuItems?.STATES
 		},
 		{
 			name: 'Training Centers',
-			link: '/trainingCenters'
+			link: '/trainingCenters',
+			key: menuItems?.TRAINING_CENTERS
 		},
 		{
 			name: 'Courses',
-			link: '/courses'
+			link: '/courses',
+			key: menuItems?.COURSES
 		},
 		{
 			name: 'Videos',
-			link: '/videos'
+			link: '/videos',
+			key: menuItems?.VIDEOS
 		},
 		{
 			name: 'Users',
-			link: '/users'
+			link: '/users',
+			key: menuItems?.USERS
 		},
 		{
 			name: 'Trainees',
-			link: '/trainees'
+			link: '/trainees',
+			key: menuItems?.TRAINEES
 		},
 		{
 			name: 'FAQs',
-			link: '/FAQs'
+			link: '/FAQs',
+			key: menuItems?.FAQS
 		},
 		{
 			name: 'Official Testimonials',
-			link: '/officialTestimonials'
+			link: '/officialTestimonials',
+			key: menuItems?.OFFICIAL_TESTIMONIALS
 		},
 		{
 			name: 'Trainee Testimonials',
-			link: '/traineeTestimonials'
+			link: '/traineeTestimonials',
+			key: menuItems?.TRAINEE_TESTIMONIALS
+		},
+		{
+			name: 'Configurations',
+			link: '/config',
+			key: menuItems?.CONFIG
 		}
 	];
 
@@ -70,10 +98,36 @@
 	function toogleMenu() {
 		sidebarOpen = !sidebarOpen;
 	}
+	// ---------------------------------- Role based functions --------------------------------
+	function roleBasedAcessSetting() {
+		// Filter the sidebar list by checking if the item's key is not in the restrictedMenuList
+		filteredSidebarList = sidebarList?.filter(
+			(item) => !roles[$userDetails?.role]?.restrictedMenuList?.includes(item?.key)
+		);
+
+		if ([6, 7, 8, 9].includes(Number($userDetails?.role))) {
+			filteredSidebarList.forEach((item) => {
+				if (item?.key === menuItems?.TRAINING_CENTERS) {
+					item.name = 'Center Details';
+					item.link = `/trainingCenters/${$userDetails?.rsetiId}/details`;
+				}
+			});
+		}
+	}
+
+	onMount(() => {
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe(); // Cleanup subscription
+	});
 </script>
 
 <div class="w-1/5 min-w-40 p-4 border-r border-gray-50 md:block hidden bg-sibebarGray">
-	{#each sidebarList as item, index (index)}
+	{#each filteredSidebarList as item, index (index)}
 		<div
 			aria-current={compareRouteBase(item.link, route) ? 'page' : undefined}
 			class="p-2 hover:bg-gray-10 rounded-md font-medium mb-2 text-primary text-sm 2xl:text-base {compareRouteBase(

@@ -1,7 +1,8 @@
-
 import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
 
-export async function GET({cookies}) {
+export async function GET({ cookies }) {
+	let res;
 	const authToken = cookies.get('authToken');
 	try {
 		const options = {
@@ -11,24 +12,17 @@ export async function GET({cookies}) {
 				Authorization: `Bearer ${authToken}`
 			}
 		};
-		const res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/banks`,
-			options
-		);
-		if (!res.ok) {
-			throw new Error('Failed to fetch data');
+		res = await fetch(`${BASE_URL}/apis/v1/banks`, options);
+
+		if (!res?.ok) {
+			return json({ status: res.status, error: 'Failed to fetch data' }, { status: res.status });
 		}
 
-		if (res.status != 200) {
-			throw new Error('Failed to fetch data');
+		if (res?.status === 200) {
+			const data = await res.json();
+			return json(data);
 		}
-		const data = await res.json();
-		// console.log("this is rseti data", data)
-		if (data?.length === 0 || Object.keys(data)?.length === 0) {
-			throw new Error('Data not found');
-		}
-		return json(data);
 	} catch (error) {
-		return json({ error: error.message });
+		return json({ error: error.message }, { status: 500 });
 	}
 }

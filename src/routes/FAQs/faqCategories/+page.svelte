@@ -9,11 +9,13 @@
 	import InputField from '$lib/components/InputField.svelte';
 	import Button from '$lib/components/Button.svelte';
 
+	import AddFaqCategoryPopUp from '$lib/faqs/AddFAQCategoryPopUp.svelte';
+
 	export let data;
 
-	let {faqCategoryListData } = data;
-
+	let {faqCategoryList } = data;
 	let error;
+
 	let tableData = [];
 	let viewModal = false;
 	let searchValue = '';
@@ -24,13 +26,20 @@
 	let englishTitle=''
 	let hindiTitle=''
 	let extId;
-	$:error=faqCategoryListData?.error?true:false;
+	let englishTitleOfNewFAQCategory = '';
+	let showAddPopUp=false;
+	let method;
+	let formObject = {
+		titleEn: '',
+		titleHi: '',
+	};
+	$:error=faqCategoryList?.error?true:false;
 
 // --------------------------- Create Table Data ---------------------------
 
-	if (!error && Array.isArray(faqCategoryListData) && faqCategoryListData.length > 0) {
+	if (!error && Array.isArray(faqCategoryList) && faqCategoryList.length > 0) {
   	const transformedData = Object.values(
-    faqCategoryListData?.reduce((acc, item) => {
+	faqCategoryList?.reduce((acc, item) => {
       const { extId, category, languageCode } = item;
 
       // Ensure valid data structure
@@ -51,8 +60,8 @@
 		if(!faqCategory.extId) return
 		let faqCategoryObj = {
 		extId: faqCategory?.extId ?? "N/A", // Default extId if missing
-		englishTitle: faqCategory?.titleEnglish ?? '-', // Default English title
-		hindiTitle: faqCategory?.titleHindi ?? '-', // Default Hindi title
+		englishTitle: faqCategory?.titleEnglish ?? '', // Default English title
+		hindiTitle: faqCategory?.titleHindi ?? '', // Default Hindi title
 		};
 		tableData.push(faqCategoryObj);
 	});
@@ -63,6 +72,67 @@
 	function sendSearchValueToDatatable(e) {
 		searchValue = e.detail;
 	}
+	// ---------------------Addition----------------------
+	function handleFAQCategoryAddition(e) {
+	message.set('');
+
+	// Extract English and Hindi results
+	let newFAQEn = e.detail?.englishResult;
+	let newFAQHi = e.detail?.hindiResult;
+
+	// Check for English success
+	if (newFAQEn) {
+		englishTitleOfNewFAQCategory = newFAQEn?.category;
+		// Find if the extId already exists in the table (edge case: Hindi succeeded first, we dont have that design as of now, if english succeed then only call for hindi will be made)
+		let existingIndex = tableData?.findIndex(item => item?.extId === newFAQEn?.extId);
+
+		if (existingIndex !== -1) {
+			// Update the existing entry with English data
+			tableData[existingIndex] = {
+				...tableData[existingIndex],
+				englishTitle: newFAQEn?.category || '',
+			};
+		} else {
+			// Add a new entry with only English data
+			tableData = [
+				...tableData,
+				{
+					extId: newFAQEn?.extId,
+					englishTitle: newFAQEn?.category || '',
+					hindiTitle: '', // Default empty Hindi title
+				},
+			];
+		}
+	}
+
+	// Check for Hindi success
+	if (newFAQHi) {
+		// Find if the extId already exists in the table
+		let existingIndex = tableData?.findIndex(item => item?.extId === newFAQHi?.extId);
+
+		if (existingIndex !== -1) {
+			// Update the existing entry with Hindi data
+			tableData[existingIndex] = {
+				...tableData[existingIndex],
+				hindiTitle: newFAQHi?.category || '',
+			};
+		} else {
+			// Add a new entry with only Hindi data (edge case: Hindi succeeded first)
+			tableData = [
+				...tableData,
+				{
+					extId: newFAQHi?.extId,
+					englishTitle: '', // Default empty English title
+					hindiTitle: newFAQHi?.category || '',
+				},
+			];
+
+			
+		}
+		let successMessage = `Successfully ${method==='POST'?'added':'updated'} FAQ Category - "${englishTitleOfNewFAQCategory}"`;
+		message.set(successMessage);
+	}
+}
 
 	// --------------------- Deletion----------------------
 
@@ -136,15 +206,27 @@
 		englishTitle = e.detail.actionData.englishTitle;
 		hindiTitle = e.detail.actionData.hindiTitle;
 
-		// if(actionName==='edit'){
-		// 	goto(`FAQs/${faqUuid}/details/edit`)
-		// }
+		if(actionName==='edit'){
+			showAddPopUp=true;
+			method='PUT'
+			formObject = {
+				titleEn: englishTitle,
+				titleHi: hindiTitle,
+			};
+		}
 	}
 
 
 	// --------------------- General ----------------------
-	function handleGoToFaq(){
-		goto('/FAQs/add');
+
+	function handleCategoryAdditionPopup(){
+		showAddPopUp=true;
+		method='POST'
+		formObject = {
+			titleEn: '',
+			titleHi: '',
+		};
+		extId=null;
 	}
 
 	function handleSuccesMessageClose(e) {
@@ -178,7 +260,7 @@
 				showSearchButton={false}
 			/>
 			<div class="flex gap-2 ml-auto">
-				<Button on:click={handleGoToFaq}>+ FAQ Category</Button>
+				<Button on:click={handleCategoryAdditionPopup}>+ FAQ Category</Button>
 			</div>
 		</div>
 	<ListingTable 
@@ -233,3 +315,16 @@
 		</DeletionModalViaAPI>
 	{/if}
 </div>
+
+
+<!-- This componeent is handling both add/edit of FAQ Categories -->
+{#if showAddPopUp}
+	<AddFaqCategoryPopUp
+		on:handleCancelSubmission={()=>showAddPopUp=false}
+		on:handleAddFAQCategory={handleFAQCategoryAddition}
+		formMode={method}
+		formObject={formObject}
+		extId={extId}
+	/>
+{/if}
+

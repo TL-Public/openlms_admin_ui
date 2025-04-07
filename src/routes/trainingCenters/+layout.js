@@ -1,57 +1,84 @@
 // For GET API
 import { String_Constants } from '/src/config/constants.js';
+import { getErrorMessage, handleRedirection } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
 
-import { error } from '@sveltejs/kit';
-
-export async function load({ fetch, depends }) {
+export async function load({ fetch, depends, url }) {
 	depends('rseti:all-rsetis');
 
 	const fetchTCListDetails = async () => {
 		try {
 			const res = await fetch(`/apis/trainingCenters`);
 
-			if (!res.ok || res.status !== 200) {
-				throw error(404, 'Data not found');
+			if (!res.ok || res.status != 200) {
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: res?.status,
+					action: userActions.LIST,
+					module: resourceNames.TRAINING_CENTER
+				});
+
+				if (redirectUser) {
+					handleRedirection(res.status, url.pathname, url.search);
+				}
+
+				return { error: errorMsg };
 			}
 
 			const data = await res.json();
 			if (data?.length === 0 || Object.keys(data)?.length === 0) {
-				throw error(404, 'Data not found');
+				throw new Error('No Training center found');
 			}
-
 			return data;
 		} catch (err) {
 			return { error: err.message };
 		}
 	};
 	const fetchBankList = async () => {
-		const res = await fetch(`/apis/banks`);
-		if (!res.ok) {
-			throw new Error('Data not found');
-		}
-		if (res.status !== 200) {
-			throw new Error('Data not found');
-		}
-		let data = await res.json();
+		try {
+			const res = await fetch(`/apis/banks`);
 
-		//checking for a length
-		if (data?.length === 0 || Object.keys(data)?.length === 0) {
-			return [
-				{
-					title: 'No Bank Found'
+			if (!res.ok || res.status != 200) {
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: res?.status,
+					action: userActions.LIST,
+					module: resourceNames.BANK
+				});
+
+				if (redirectUser) {
+					handleRedirection(res.status, url.pathname, url.search);
 				}
-			];
-		}
 
-		// adding all banks option to the list
-		data = [
-			{
-				title: String_Constants.ALL_BANKS,
-				uuid: '0'
-			},
-			...data
-		];
-		return data;
+				return { error: errorMsg };
+			}
+
+			let data = await res.json();
+
+			//checking for a length
+			if (data?.length === 0 || Object.keys(data)?.length === 0) {
+				return {
+					error: 'No Banks found',
+					data: [
+						{
+							title: 'No Bank Found'
+						}
+					]
+				};
+			}
+
+			// adding all banks option to the list
+			data = [
+				{
+					title: String_Constants.ALL_BANKS,
+					uuid: '0'
+				},
+				...data
+			];
+			return data;
+		} catch (err) {
+			return {
+				error: err.message
+			};
+		}
 	};
 	return {
 		tcData: await fetchTCListDetails(),

@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
 
 export async function GET({ params, cookies }) {
 	const { stateId } = params;
@@ -6,7 +7,7 @@ export async function GET({ params, cookies }) {
 	const authToken = cookies.get('authToken');
 	try {
 		res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/states/${stateId}`,
+			`${BASE_URL}/apis/v1/states/${stateId}`,
 			{
 				method: 'GET',
 				headers: {
@@ -40,7 +41,7 @@ export async function GET({ params, cookies }) {
 // 		const authToken = cookies.get('authToken');
 // 		const body = await request.json();
 // 		res = await fetch(
-// 			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/courses/${id}`,
+// 			`${BASE_URL}/apis/v1/courses/${id}`,
 // 			{
 // 				method: 'PUT',
 // 				headers: {

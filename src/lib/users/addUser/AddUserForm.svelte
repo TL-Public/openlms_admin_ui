@@ -6,7 +6,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import TextDescriptionField from '$lib/components/TextDescriptionField.svelte';
 	import CheckBox from '$lib/components/CheckBox.svelte';
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onDestroy } from 'svelte';
 	import ReviewForm from '$lib/components/ReviewForm.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import SearchableComboBox from '$lib/components/SearchableComboBox.svelte';
@@ -15,12 +15,18 @@
 	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
 	import ReviewUserForm from '$lib/users/UserDetailsPreview.svelte';
 	import { onMount } from 'svelte';
-	import { usersWithStateId, usersWithRsetiId } from '$lib/data.js';
+	import { usersWithStateId, usersWithRsetiId, roleIds } from '$lib/data.js';
 	import MultiStepProgressComponent from '$lib/components/MultiStepProgressComponent.svelte';
+	import { handleRedirection } from '$lib/utils/helper.js';
+	import { page } from '$app/stores';
+	import {userDetails} from '/src/routes/store.js'
+	import {showLoadingSpinner} from '/src/routes/store.js'
+
 
 	export let stateOptionList = [];
 	export let rsetiOptionList = [];
 	export let method = 'POST';
+
 	let rsetiOptionListCopy = [...rsetiOptionList];
 	let roleOptions = rolesList;
 
@@ -34,6 +40,7 @@
 	let showRsetiList = false;
 
 	let sizeErrorMessage = '';
+	const url = $page.url;
 	const maxFileSizeInIntegers = 1;
 	const maxFileSize = 1 * 1024 * 1024;
 
@@ -55,6 +62,9 @@
 	let errorMessage = '';
 	let imageUploadInputRef;
 
+	let stateUserRoleIds=[4,5]
+	let rsetiUserRoleIds=[6,7]
+
 	export let formObject = {
 		username: '',
 		name: '',
@@ -74,6 +84,13 @@
 		photoUrl: null
 	};
 
+	$: if (isSubmitting === true){
+		showLoadingSpinner.set(true)
+	} else {
+		showLoadingSpinner.set(false)
+	}
+
+
 	onMount(() => {
 		if (method === 'PUT') {
 			if (typeof formObject?.photoUrl == 'string' && formObject?.photoUrl != 'null') {
@@ -87,6 +104,87 @@
 			formObject.userRoleName = roleOptions.find((item) => item.roleId === formObject.roleId)?.name;
 			formObject.stateName = stateOptionList.find((item) => item.id === formObject.stateId)?.name;
 			formObject.rsetiName = rsetiOptionList.find((item) => item.id === formObject.rsetiId)?.name;
+		}
+
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe(); 
+		// ---------------------------------- Role based functions --------------------------------
+	function roleBasedAcessSetting() {
+		 if (Number($userDetails?.role)=== Number(roleIds?.RSETI_ADMIN)){
+			formObject.stateId=$userDetails?.stateId
+			formObject.stateName = stateOptionList?.find((item)=>Number(item?.id) == Number($userDetails?.stateId))?.name
+			formObject.rsetiId=$userDetails?.rsetiId
+			formObject.rsetiName = rsetiOptionList?.find((item)=>item?.id == $userDetails?.rsetiId)?.name
+
+			roleOptions = [
+				{ name: 'RSETI Staff', roleId: 7, order: 7 },
+				{ name: 'Trainer', roleId: 8, order: 8 }
+			]
+	
+		 }
+
+		 if (Number($userDetails?.role)=== Number(roleIds?.RSETI_STAFF)){
+			formObject.stateId=$userDetails?.stateId
+			formObject.stateName = stateOptionList?.find((item)=>Number(item?.id) == Number($userDetails?.stateId))?.name
+			formObject.rsetiId=$userDetails?.rsetiId
+			formObject.rsetiName = rsetiOptionList?.find((item)=>item?.id == $userDetails?.rsetiId)?.name
+
+			roleOptions = [
+				{ name: 'Trainer', roleId: 8, order: 8 }
+			]
+	
+		 }
+
+		 if (Number($userDetails?.role)=== Number(roleIds?.STATE_ADMIN)){
+			formObject.stateId=$userDetails?.stateId
+			formObject.stateName = stateOptionList?.find((item)=>Number(item?.id) == Number($userDetails?.stateId))?.name
+
+			roleOptions = [
+				{ name: 'State Staff', roleId: 5, order: 5 },
+				{ name: 'RSETI Admin', roleId: 6, order: 6 },
+				{ name: 'RSETI Staff', roleId: 7, order: 7 },
+				// { name: 'Trainer', roleId: 8, order: 8 }
+			]
+	
+		 }
+
+		 if (Number($userDetails?.role)=== Number(roleIds?.STATE_STAFF)){
+			formObject.stateId=$userDetails?.stateId
+			formObject.stateName = stateOptionList?.find((item)=>Number(item?.id) == Number($userDetails?.stateId))?.name
+
+			roleOptions = [
+				{ name: 'RSETI Admin', roleId: 6, order: 6 },
+				{ name: 'RSETI Staff', roleId: 7, order: 7 },
+				// { name: 'Trainer', roleId: 8, order: 8 }
+			]
+	
+		 }
+
+		 if (Number($userDetails?.role)=== Number(roleIds?.NAR_ADMIN)){
+			roleOptions = [
+				{ name: 'NAR Staff', roleId: 3, order: 3 },
+				{ name: 'State Admin', roleId: 4, order: 4 },
+				{ name: 'State Staff', roleId: 5, order: 5 },
+				{ name: 'RSETI Admin', roleId: 6, order: 6 },
+				{ name: 'RSETI Staff', roleId: 7, order: 7 },
+				{ name: 'Trainer', roleId: 8, order: 8 }
+			]
+		 }
+
+		 if (Number($userDetails?.role)=== Number(roleIds?.NAR_STAFF)){
+			roleOptions = [
+				{ name: 'State Admin', roleId: 4, order: 4 },
+				{ name: 'State Staff', roleId: 5, order: 5 },
+				{ name: 'RSETI Admin', roleId: 6, order: 6 },
+				{ name: 'RSETI Staff', roleId: 7, order: 7 },
+				{ name: 'Trainer', roleId: 8, order: 8 }
+			]
+		 }
 		}
 	});
 
@@ -274,6 +372,7 @@
 
 		if (usernameError || emailError) {
 			saved = false;
+			isSubmitting=false
 			cancel();
 			return;
 		}
@@ -283,6 +382,7 @@
 
 		if (Object.values(formErrors).includes(true)) {
 			saved = false;
+			isSubmitting=false
 			cancel();
 			return;
 		}
@@ -313,11 +413,8 @@
 			await result;
 
 			if (search === '?/final') {
-				if (!Object.keys(result?.data)?.includes('error')) {
+				if (result.type == 'success') {
 					if (method === 'POST') {
-						const dataObject = JSON.stringify({
-							uuid: result?.data?.data?.traineeProfileDto?.uuid
-						});
 						message.set(
 							`Successfully added ${formObject?.userRoleName} user - "${formObject?.name}".`
 						);
@@ -327,9 +424,6 @@
 						});
 					}
 					if (method === 'PUT') {
-						const dataObject = JSON.stringify({
-							uuid: result?.data?.data?.traineeProfileDto?.uuid
-						});
 						message.set(
 							`Successfully edited ${formObject?.userRoleName} user - "${formObject?.name}".`
 						);
@@ -337,16 +431,19 @@
 							invalidateAll: true
 						});
 					}
-				} else {
+				}
+
+				if (result.type == 'failure') {
 					formObject = formObject;
 					creationError = true;
 					isSubmitting = false;
 
 					if (result?.data?.error) {
-						if (result?.data?.status === 409) {
-							errorMessage = result?.data?.error + ` User already exists.`;
+						errorMessage = result?.data?.error;
+						if (result?.status === 401) {
+							handleRedirection(result.status, url.pathname, url.search);
 						} else {
-							errorMessage = result?.data?.error;
+							//handle other errors
 						}
 					}
 				}
@@ -359,6 +456,10 @@
 		formObject = formObject;
 		currentStep = 1;
 	}
+
+	onDestroy(()=>{
+		showLoadingSpinner.set(false)
+	})
 </script>
 
 <div class=" text-primary">
@@ -479,6 +580,7 @@
 							on:handleDispatchFilterData={handleDropDown}
 							bind:selectedItemName={formObject.userRoleName}
 							bind:selectedItemId={formObject.roleId}
+							disabled={method==='PUT'}
 						/>
 					</div>
 					<div class="w-full">
@@ -504,6 +606,7 @@
 									validationErrors={formErrors.stateId ? 'Please select state' : ''}
 									on:handleDispatchComboBoxData={handleStateSelection}
 									on:handleDispatchFilterData={handleStateClearFilter}
+									disabled= {rsetiUserRoleIds.includes(Number($userDetails?.role)) || stateUserRoleIds.includes(Number($userDetails?.role)) }
 								/>
 							</div>
 						{/if}
@@ -519,6 +622,7 @@
 									validationErrors={formErrors.rsetiId ? 'Please select RSETI' : ''}
 									on:handleDispatchComboBoxData={handleRsetiSelection}
 									on:handleDispatchFilterData={handleRsetiClearFilter}
+									disabled= {rsetiUserRoleIds.includes(Number($userDetails?.role))}
 								/>
 							</div>
 						{/if}
@@ -557,6 +661,7 @@
 					userData={formObject}
 					rsetiName={formObject.rsetiName}
 					stateName={formObject.stateName}
+					enableEdit={false}
 					imageUrl={displayImage
 						? displayImage.startsWith('blob:')
 							? displayImage // Blob URL doesn't need a timestamp

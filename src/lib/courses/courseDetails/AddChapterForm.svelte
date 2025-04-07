@@ -7,6 +7,10 @@
 	import Book from '$lib/svgComponents/Book.svelte';
 	import LineLoader from '$lib/components/LineLoader.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { getErrorMessage } from '$lib/utils/helper.js';
+	import { resourceNames, userActions } from '$lib/data.js';
 
 	export let courseUuid;
 	export let orderNumber;
@@ -60,23 +64,33 @@
 			inputs.forEach((input) => input.reportValidity());
 			return; // Stop submission if any field is invalid
 		}
+		let response;
 		try {
 			errorMessage = '';
 			isSubmitting = true;
-			const response = await fetch(`/apis/courses/details/${courseUuid}/chapters`, {
+			response = await fetch(`/apis/courses/details/${courseUuid}/chapters`, {
 				method: 'POST',
 				body: JSON.stringify(dataToSend)
 			});
 
-			if (!response.ok) {
-				errorMessage = `Failed to add chapter. Please try again!`;
-				throw new Error('Failed to add chapter');
+			if (!response.ok || response.status != 201) {
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: response?.status,
+					action: userActions.ADD,
+					module: resourceNames.CHAPTER
+				});
+
+				if (redirectUser) {
+					handleRedirection(response.status, $page.url.pathname, $page.url.search);
+				}
+
+				errorMessage = errorMsg;
 			}
+
 			const result = await response.json();
+
 			if (!result.error) {
 				dispatch('handleAddChapter', { result, titleEn: formObject?.chapterNameEn });
-			} else {
-				errorMessage = `Failed to add chapter. Please try again.`;
 			}
 		} catch (error) {
 			console.error('Error:', error);
@@ -107,7 +121,7 @@
 	></div>
 
 	<div class="fixed inset-0 z-10 w-screen overflow-y-auto" id="form">
-		<div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+		<div class="flex min-h-full justify-center p-4 text-center items-center sm:p-0">
 			<div
 				class="relative transform overflow-hidden rounded-lg bg-gray-10 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6"
 				on:click|stopPropagation
@@ -177,9 +191,9 @@
 				</div>
 
 				<div class="mt-5 sm:mt-4 flex gap-2 justify-end">
-					<Button on:click={handleSubmit} disabled={isSubmitting}>Submit</Button>
 					<Button btnType="secondary" disabled={isSubmitting} on:click={handleCancel}>Cancel</Button
 					>
+					<Button on:click={handleSubmit} disabled={isSubmitting}>Submit</Button>
 				</div>
 			</div>
 		</div>

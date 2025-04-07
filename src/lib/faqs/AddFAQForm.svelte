@@ -1,19 +1,21 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-	import { message } from '/src/routes/courses/courseStore.js';
+	import { onMount, onDestroy } from 'svelte';
+	import { message } from '/src/routes/FAQs/faqStore.js';
 	import DropDown from '$lib/components/DropDown.svelte';
 	import InputField from '$lib/components/InputField.svelte';
 	// import BreadCrumbs from '$lib/components/BreadCrumbs.svelte';
 	import TextDescriptionField from '$lib/components/TextDescriptionField.svelte';
 	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
+
 	import ReviewForm from '$lib/components/ReviewForm.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import MultiStepProgressComponent from '$lib/components/MultiStepProgressComponent.svelte';
+	import { handleRedirection } from '$lib/utils/helper.js';
+	import { page } from '$app/stores';
+	import {showLoadingSpinner} from '/src/routes/store.js'
 
-
-	
 
 	export let route;
 	export let params;
@@ -27,7 +29,7 @@
 		uuid: '',
 		method: ''
 	};
-
+	const url = $page.url;
 	let saved = false;
 	let validationErrors = {};
 	let creationError = false;
@@ -39,10 +41,11 @@
 
 	let isSubmitting = false;
 
-	let steps=[{number:1, text:'Details'},{number:2, text:'Review'}]
-	let currentStep = 1
-
-
+	let steps = [
+		{ number: 1, text: 'Details' },
+		{ number: 2, text: 'Review' }
+	];
+	let currentStep = 1;
 
 	onMount(() => {
 		if (route.includes('edit')) {
@@ -52,9 +55,28 @@
 		}
 	});
 
+	
+	$: if (isSubmitting === true){
+		showLoadingSpinner.set(true)
+	} else {
+		showLoadingSpinner.set(false)
+	}
+
 	function handleDropDown(e) {
 		if (e.detail.type == 'categoryDropdown') {
 			formObject.categoryId = e.detail.selectedItemId;
+		}
+	}
+
+	function handleSuccess(method) {
+		if (method === 'POST') {
+			goto('/FAQs', { invalidateAll: true });
+			message.set('FAQ added successfully');
+		}
+
+		if (method === 'PUT') {
+			goto('/FAQs', { invalidateAll: true });
+			message.set('FAQ edited successfully!');
 		}
 	}
 
@@ -67,7 +89,7 @@
 		// This is done becuase enhance function is being triggered when the pdf is opened in another window
 		if (search == '?/review') {
 			saved = !saved;
-			currentStep=2
+			currentStep = 2;
 		}
 		if (search == '?/final') {
 			isSubmitting = true;
@@ -82,7 +104,6 @@
 			validationErrors.categoryId = 'This field should not be empty.';
 		}
 
-		
 		// Validation for dropdowns
 		formData?.forEach((value, key) => {
 			if (key === 'categoryName') {
@@ -95,6 +116,7 @@
 		// If there are validation errors, cancel the submission and handle errors
 		if (Object.keys(validationErrors)?.length > 0) {
 			saved = false;
+			isSubmitting=false
 			cancel();
 			return;
 		}
@@ -102,26 +124,24 @@
 		return async ({ result, update }) => {
 			await result;
 			// `result` is an `ActionResult` object
-			if (search == '?/final') {
-				isSubmitting = true;
-				if (!Object.keys(result?.data)?.includes('error')) {
-					if (method === 'POST') {
-						goto(`/FAQs`, { invalidateAll: true });
-						message.set('FAQ added successfully!');
-					}
-					if (method === 'PUT') {
-						goto(`/FAQs`, { invalidateAll: true });
-						message.set('FAQ edited successfully!');
-					}
 
-				} else {
-					// repopulating the dropdown placeholder
+			if (search == '?/final') {
+				console.log('result', result);
+
+				if (result.type == 'success') {
+					handleSuccess(method);
+				}
+
+				if (result.type == 'failure') {
 					isSubmitting = false;
 					formObject.categoryId = result?.data?.data?.categoryId;
 					formObject = formObject;
 					creationError = true;
 					if (result?.data?.error) {
 						errorMessage = result?.data?.error;
+						if (result?.status === 401) {
+							handleRedirection(result.status, url.pathname, url.search);
+						}
 					}
 				}
 			}
@@ -134,27 +154,37 @@
 
 	function handlePrevious() {
 		saved = false;
-		currentStep=1
+		currentStep = 1;
 		formObject = formObject;
 	}
 
 	let faqCatFilterOptionList = [];
-	faqCategoryListData.forEach((item) => {
-		if (item.languageCode === 'en' && item.category && item.extId) {
-			faqCatFilterOptionList.push({ title: item.category, uuid: item.extId });
-		}
-	});
-	
+	if (!faqCategoryListData.error) {
+		faqCategoryListData?.forEach((item) => {
+			if (item?.languageCode === 'en' && item?.category && item?.extId) {
+				faqCatFilterOptionList.push({ title: item?.category, uuid: item?.extId });
+			}
+		});
+	}
+
 	function getMatchingCategory() {
-    return faqCategoryListData.find(item => 
-      item.languageCode === 'hi' && 
-      faqCategoryListData.some(enItem => 
-        enItem.languageCode === 'en' && 
-        enItem.category.trim().toLowerCase() === formObject.categoryName.trim().toLowerCase() && 
-        enItem.extId === item.extId
-      )
-    );
-  }
+		if (!faqCategoryListData.error) return '-';
+		return faqCategoryListData.find(
+			(item) =>
+				item?.languageCode === 'hi' &&
+				faqCategoryListData?.some(
+					(enItem) =>
+						enItem?.languageCode === 'en' &&
+						enItem?.category?.trim()?.toLowerCase() ===
+							formObject?.categoryName?.trim()?.toLowerCase() &&
+						enItem?.extId === item.extId
+				)
+		);
+	}
+
+	onDestroy(()=>{
+		showLoadingSpinner.set(false)
+	})
 </script>
 
 <div class=" text-darkGray">
@@ -164,13 +194,10 @@
 		</div>
 	{/if}
 
-
 	<div class="w-full max-w-80 mx-auto">
-		<MultiStepProgressComponent 
-		{steps}
-		{currentStep}/>
+		<MultiStepProgressComponent {steps} {currentStep} />
 	</div>
-	
+
 	<form
 		method="post"
 		action="/FAQs"
@@ -182,25 +209,8 @@
 			<div>
 				<h2 class="heading-L">1.{method === 'POST' ? 'Add' : 'Edit'} FAQ Details</h2>
 				<hr class="my-4 horizontal-line" />
-				<h3 class="heading-L mb-2 ">Basic Details</h3>
 
 				<!-- First Row -->
-				<!-- <div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-4 gap-2 lg:gap-20">
-					<div class="grid grid-cols-1 items-end mb-4 gap-2 order-2 lg:order-none">
-
-						<DropDown
-							on:handleDispatchFilterData={handleDropDown}
-							bind:selectedItemId={formObject.categoryId}
-							bind:selectedItemName={formObject.categoryName}
-							validationErrors={validationErrors ? validationErrors?.categoryId : ''}
-							options={faqCatFilterOptionList}
-							type={'categoryDropdown'}
-							title={'FAQ category'}
-						/>
-						
-					</div>
-
-				</div> -->
 
 				<div class="grid grid-cols-1 lg:grid-cols-2 items-end gap-2 lg:gap-20">
 					<!-- Dropdown Section -->
@@ -214,18 +224,15 @@
 							type={'categoryDropdown'}
 							title={'FAQ category'}
 						/>
-				
+
 						<!-- "View FAQ Category" Link -->
-						<a 
-							href="\FAQs\faqCategories"
-							class="text-xs text-blue-500 hover:underline mt-2"
-						>
+						<a href="\FAQs\faqCategories" class="text-xs text-blue-500 hover:underline mt-2">
 							View All FAQ Categories
 						</a>
 					</div>
 				</div>
 
-						<hr class="my-4 horizontal-line" />
+				<hr class="my-4 horizontal-line" />
 				<h3 class=" heading-L">Language wise FAQ details</h3>
 
 				<h4 class=" text-xs mb-4 text-gray-400">
@@ -289,17 +296,14 @@
 
 					<div class="flex flex-col md:flex-row gap-6">
 						<div class="flex-grow">
-							
 							<h3 class=" font-medium mb-4 mt-2 text-primary">Language-wise FAQ Details</h3>
-
 
 							<!-- English Details -->
 							<div class="mb-2">
 								<h4 class="text-base font-semibold mb-2">English</h4>
 								<div class="space-y-1">
-
 									<p class="text-sm font-medium">{formObject?.questionEn ?? '-'}</p>
-									<p class="text-sm ">{formObject?.answerEn ?? '-'}</p>
+									<p class="text-sm">{formObject?.answerEn ?? '-'}</p>
 									<p class="text-sm">
 										<span class="label">Category Name :</span>
 										{formObject?.categoryName ?? '-'}
@@ -312,12 +316,10 @@
 							<div>
 								<h4 class="text-base font-semibold mb-2 mt-2">Hindi</h4>
 								<div class="space-y-1">
-
 									<p class="text-sm font-medium">
-
 										{formObject?.questionHi ? formObject?.questionHi : 'Question: -'}
 									</p>
-									<p class="text-sm ">
+									<p class="text-sm">
 										{formObject?.answerHi ? formObject?.answerHi : 'Answer: -'}
 									</p>
 
@@ -327,10 +329,10 @@
         								{/if}
 									</p> -->
 									{#if getMatchingCategory()}
-									<p class="text-sm">
-										<span class="label">Category Name :</span>
-										{getMatchingCategory().category}
-									</p>
+										<p class="text-sm">
+											<span class="label">Category Name :</span>
+											{getMatchingCategory().category}
+										</p>
 									{/if}
 								</div>
 							</div>
@@ -342,21 +344,21 @@
 
 		<div class="flex justify-end gap-4 flex-wrap">
 			{#if saved}
-			<Button
-			type="button"
-			btnType="secondary"
-			customClass={'inline-block w-full bp-420px:w-fit'}
-			disabled={isSubmitting}
-			on:click={handlePrevious}>Edit</Button
-		>
+				<Button
+					type="button"
+					btnType="secondary"
+					customClass={'inline-block w-full bp-420px:w-fit'}
+					disabled={isSubmitting}
+					on:click={handlePrevious}>Edit</Button
+				>
 			{:else}
-			<Button
-			type="button"
-			btnType="secondary"
-			customClass={'inline-block w-full bp-420px:w-fit flex justify-center'}
-			disabled={isSubmitting}
-			on:click={handleGoBack}>Cancel</Button
-		>
+				<Button
+					type="button"
+					btnType="secondary"
+					customClass={'inline-block w-full bp-420px:w-fit flex justify-center'}
+					disabled={isSubmitting}
+					on:click={handleGoBack}>Cancel</Button
+				>
 			{/if}
 			<Button
 				btnType="primary"

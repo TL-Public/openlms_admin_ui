@@ -1,32 +1,34 @@
 import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
 
 export async function POST({ params, url, request, cookies }) {
 	const authToken = cookies.get('authToken');
-    let courseUuid=url.searchParams.get('courseUuid')
-    let chapterUuid=url.searchParams.get('chapterUuid')
+	let courseUuid = url.searchParams.get('courseUuid');
+	let chapterUuid = url.searchParams.get('chapterUuid');
 	const body = await request.json();
-	let res
+	console.log('body', JSON.stringify(body))
+	let res;
 	try {
-		 res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/courses/${courseUuid}/chapters/${chapterUuid}/videos`, {
-				method: 'POST',
-				headers: {
-				  'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`, 
-				},
-                body: JSON.stringify(body) 
-			  }
-		);
-		if (!res.ok) {
-			throw new Error('Failed to add video');
-		}
-		if (res.status != 201) {
-			throw new Error('Failed to add video');
+		res = await fetch(`${BASE_URL}/apis/v1/courses/${courseUuid}/chapters/${chapterUuid}/videos`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`
+			},
+			body: JSON.stringify(body)
+		});
+
+		console.log('res', res)
+
+		if (!res?.ok) {
+			return json({ status: res.status, error: 'Failed to add video' }, { status: res.status });
 		}
 
-		const responseData = await res.json();
-        return json({responseData,status: res.status} ); 
+		if (res?.status === 201) {
+			const responseData = await res.json();
+			return json({ responseData, status: res.status }, { status: res.status });
+		}
 	} catch (error) {
-		return json({ error: error.message, status: res.status });
+		return json({ error: error.message, status: res.status }, { status: 500 });
 	}
 }

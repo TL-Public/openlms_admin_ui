@@ -2,8 +2,8 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	// --- tabs format ---
 	// [ {text, textDisplay, icon} ]
-	export let tabs;
-	export let activeTab = tabs?.[0] ?? [];
+	export let tabs= []
+	export let activeTab = tabs?.[0] ||[]
 
 	const despatch = createEventDispatcher();
 
@@ -17,10 +17,10 @@
 	<nav class="flex flex-row flex-wrap">
 		{#each tabs as tab}
 			<button
-				aria-current={tab?.text === activeTab.text ? true : false}
+				aria-current={tab?.text === activeTab?.text ? true : false}
 				on:click={() => handleTab(tab)}
 				class=" whitespace-nowrap cursor-pointer border-b-2 px-4 py-3 text-sm font-medium text-darkGray hover:bg-gray-10 hover:border-orange-40 hover:text-gray-700 {tab?.text ===
-				activeTab.text
+				activeTab?.text
 					? 'border-orange-100  hover:bg-gray-30 bg-gray-30 font-semibold'
 					: 'border-transparent bg-sibebarGray highlight last:rounded-tr-lg'}"
 			>

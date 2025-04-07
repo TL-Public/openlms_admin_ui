@@ -13,7 +13,6 @@
 
 	let { testimonials } = data;
 
-	let error;
 	let tableData = [];
 	let viewModal = false;
 	let searchValue = '';
@@ -30,6 +29,9 @@
 	let deletionConfirmText = 'please delete this testimonial';
 	let deleteTextConfirmation = false;
 
+	//primary data is the most important data on the page. Error in loading this data means, the page itself will be shown as an error page
+	$: primaryDataError = testimonials?.error ? testimonials?.error : '';
+
 	// Function to normalize text (removes spaces and ignores case)
 	const normalizeText = (text) => text?.trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -45,11 +47,10 @@
 	$: createTableData(testimonials, selectedLanguage);
 	function createTableData() {
 		let testimonialsCopy = [];
-		error = '';
+
 		tableData = [];
 
 		if (testimonials?.error || !testimonials || testimonials.length === 0) {
-			error = 'No testimonials available';
 			return;
 		}
 
@@ -124,7 +125,7 @@
 			key: 'designation',
 			name: 'Designation'
 		},
-        {
+		{
 			key: 'place',
 			name: 'Place'
 		},
@@ -166,25 +167,24 @@
 		testimonialText = e.detail.actionData.testimonialText;
 		testimonialUuid = e.detail.actionData.uuid;
 
-		if(actionName==='view'){
-			goto(`traineeTestimonials/${testimonialUuid}/details`)
+		if (actionName === 'view') {
+			goto(`traineeTestimonials/${testimonialUuid}/details`);
 		}
 
-		if(actionName==='edit'){
-			goto(`traineeTestimonials/${testimonialUuid}/details/edit`)
+		if (actionName === 'edit') {
+			goto(`traineeTestimonials/${testimonialUuid}/details/edit`);
 		}
 	}
 </script>
 
 <div class="mb-2">
 	{#if $message}
-	<SuccessMessage
-		successMessage={$message}
-		on:handleSuccessMessageClose={handleSuccesMessageClose}
-	/>
-{/if}
+		<SuccessMessage
+			successMessage={$message}
+			on:handleSuccessMessageClose={handleSuccesMessageClose}
+		/>
+	{/if}
 </div>
-
 
 <div class="flex justify-between items-start mb-8 gap-4 flex-nowrap">
 	<div>
@@ -209,17 +209,19 @@
 			showSearchButton={false}
 		/>
 		<div class="flex gap-2 ml-auto">
-		<Button on:click={handleGoToTestimonialAddition}>+ Testimonial</Button>
+			<Button on:click={handleGoToTestimonialAddition}>+ Testimonial</Button>
 		</div>
 	</div>
-	<ListingTable {searchValue} 
-	{tableData} 
-	on:tableActionClick={handleTableAction} 
-	{error} 
-	{tableHeaderDisplay}
-	{actionConfigObject}
-	rowHeight={'compact'}
-	bind:sortAccordingTo/>
+	<ListingTable
+		{searchValue}
+		{tableData}
+		on:tableActionClick={handleTableAction}
+		error={primaryDataError}
+		{tableHeaderDisplay}
+		{actionConfigObject}
+		rowHeight={'compact'}
+		bind:sortAccordingTo
+	/>
 </div>
 
 <div>
@@ -235,23 +237,24 @@
 			on:handleDeletion={handleTestimonialDeletion}
 		>
 			<hr />
-			<div class="flex flex-col gap-2 p-6 bg-offwhite rounded-lg mb-4 border border-gray-50 text-darkGray">
+			<div
+				class="flex flex-col gap-2 p-6 bg-offwhite rounded-lg mb-4 border border-gray-50 text-darkGray"
+			>
 				<div>
-
 					<p class="text-sm capitalize">
 						<span class="label">Name :</span>
 						{personName}
 					</p>
-					<p class="text-sm ">
+					<p class="text-sm">
 						<span class="label">Designation :</span>
 						{designation}
 					</p>
-					
-					<p class="text-sm ">
+
+					<p class="text-sm">
 						<span class="label">Place :</span>
 						{place}
 					</p>
-					<p class="text-sm ">
+					<p class="text-sm">
 						<span class="label">Testimonial text :</span>
 						{testimonialText}
 					</p>

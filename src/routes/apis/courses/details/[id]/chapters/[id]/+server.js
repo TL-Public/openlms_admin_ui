@@ -1,64 +1,62 @@
 import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
 
 export async function PUT({ request, params, url, cookies }) {
 	let courseUuid = url.searchParams.get('courseUuid');
 	let uuid = url.searchParams.get('uuid');
-	let res
+	let res;
 	try {
 		const authToken = cookies.get('authToken');
 		const body = await request.json();
-		res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/courses/${courseUuid}/chapters/${uuid}`,
-			{
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify(body)
-			}
-		);
-		if (!res.ok) {
-			throw new Error('Failed to edit chapter');
+		res = await fetch(`${BASE_URL}/apis/v1/courses/${courseUuid}/chapters/${uuid}`, {
+			method: 'PUT',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`
+			},
+			body: JSON.stringify(body)
+		});
+
+		if (!res?.ok) {
+			return json({ status: res.status, error: 'Failed to edit chapter' }, { status: res.status });
 		}
 
-		const responseData = await res.json();
-		return json(responseData);
+		if (res?.status === 200) {
+			const data = await res.json();
+			return json(data);
+		}
 	} catch (error) {
-		return json({ error: error.message, status: res.status });
+		return json({ error: error.message, status: res.status }, { status: 500 });
 	}
 }
 
 export async function DELETE({ params, url, cookies }) {
 	let courseUuid = url.searchParams.get('courseUuid');
 	let uuid = url.searchParams.get('uuid');
+	let res;
 	try {
 		const authToken = cookies.get('authToken');
-		const res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/courses/${courseUuid}/chapters/${uuid}`,
-			{
-				method: 'DELETE',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				}
+
+		res = await fetch(`${BASE_URL}/apis/v1/courses/${courseUuid}/chapters/${uuid}`, {
+			method: 'DELETE',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`
 			}
-		);
+		});
+
 		if (!res.ok) {
-			return json({ error: 'Failed to delete chapter.' });
-		}
-		if (res?.status === 404) {
-			return json({ error: 'Data Not Found!' });
+			return json({ error: 'Failed to delete chapter.' }, { status: res.status });
 		}
 
 		// Check for 204 No Content
 		if (res?.status === 204) {
-			return json({ message: 'chapter successfully deleted.' });
+			return new Response(null, { status: 204 });
 		}
 		if (res?.status === 200) {
-			return json({ message: 'chapter successfully deleted.' });
+			return json({ message: 'chapter successfully deleted.' }, { status: res.status });
 		}
 	} catch (error) {
-		return json({ error: error.message });
+		return json({ error: error.message }, { status: 500 });
 	}
 }

@@ -1,17 +1,21 @@
+import { BASE_URL } from '$lib/config';
+import { fail } from '@sveltejs/kit';
+import { getErrorMessage } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
+
 let method = '';
 
 async function saveCourseData({ request, fetch, cookies }) {
 	const authToken = cookies.get('authToken');
-	try {
-		// Extract form data
-		const data = await request.formData();
-		const formData = Object.fromEntries(data.entries());
-		const body = formData.postData ? JSON.stringify(JSON.parse(formData.postData)) : null;;
-		method = data.get('method') || '';
+	let response;
+	const data = await request.formData();
+	const formData = Object.fromEntries(data.entries());
+	method = data.get('method') || '';
+	let body = formData.postData ? JSON.stringify(JSON.parse(formData.postData)) : null;
 
-		let response;
+	try {
 		if (method === 'POST') {
-			response = await fetch(`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/rsetis/${formData.rsetiUuid}/courses`, {
+			response = await fetch(`${BASE_URL}/apis/v1/rsetis/${formData.rsetiUuid}/courses`, {
 				method: 'POST',
 				body: body,
 				headers: {
@@ -20,48 +24,64 @@ async function saveCourseData({ request, fetch, cookies }) {
 				}
 			});
 
-			if (!response.ok || response.status != 201) {
-				if (response.status == 409)
-					return {
-						error: 'Failed to submit form, rseti id already exists. Please try again!',
-						data: body
-					};
-				return { error: 'Failed to submit form. Please try again!', data: body };
+			if (!response.ok) {
+				let { errorMsg } = getErrorMessage({
+					status: response?.status,
+					action: userActions.ADD,
+					module: resourceNames.TRAINING_CENTER_COURSE
+				});
+
+				return fail(response.status, {
+					error: errorMsg,
+					success: false,
+					data: JSON.parse(formData.postData)
+				});
 			}
 		}
 
 		if (method === 'PUT') {
-			response = await fetch(`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/rsetis/${formData.rsetiUuid}/rseticourses/${formData.uuid}`, {
-				method: 'PUT',
-				body: body,
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
+			response = await fetch(
+				`${BASE_URL}/apis/v1/rsetis/${formData.rsetiUuid}/rseticourses/${formData.uuid}`,
+				{
+					method: 'PUT',
+					body: body,
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${authToken}`
+					}
 				}
-			});
+			);
 
-			// Check for a successful response
-			if (!response.ok || response.status != 200) {
-				if (response.status == 409)
-					return {
-						error: 'Failed to submit form, rseti id already exists. Please try again!',
-						data: body
-					};
-				return { error: 'Failed to submit form. Please try again!', data: body };
+			if (!response.ok) {
+				let { errorMsg } = getErrorMessage({
+					status: response?.status,
+					action: userActions.EDIT,
+					module: resourceNames.TRAINING_CENTER_COURSE
+				});
+
+				return fail(response.status, {
+					error: errorMsg,
+					success: false,
+					data: JSON.parse(formData.postData)
+				});
 			}
 		}
 
-		let resultObject= await response.json()
+		let resultObject = await response.json();
 		// Return success status
+
 		return {
-			message: 'Form saved successfully',
-			resultObject:resultObject
+			status: response.status,
+			resultObject
 		};
 	} catch (error) {
 		console.error('Error in form action for Course:', error.message);
-		return {
-			error: `Error: ${error.message}`
-		};
+
+		return fail(response.status, {
+			error: error.message,
+			success: false,
+			resultObject: body
+		});
 	}
 }
 

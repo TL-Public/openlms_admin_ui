@@ -1,31 +1,40 @@
 <script>
 	import { page } from '$app/stores';
 	import Add from '$lib/trainingCenters/addTC/AddForm.svelte';
+	import { combineErrorMessages } from '$lib/utils/helper.js';
+	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	export let data;
 
 	let { stateData, tcData, TCDetails, bankData } = data;
 	let tcObject = null;
 	let isEditMode = false;
-	$:error=TCDetails?.error?true:false
 
-	$:if (!error) {
+	$: primaryDataError = TCDetails?.error ? TCDetails?.error : '';
+	$: secondaryErrors = combineErrorMessages(stateData?.error, tcData?.error, bankData?.error);
+
+	$: if (!primaryDataError) {
 		try {
-			let formData = tcData.find((elem) => elem.uuid === TCDetails.uuid);
+			let formData = tcData?.find((elem) => elem?.uuid === TCDetails?.uuid);
 
-			if (formData) {
+			if (formData && formData.translations) {
 				isEditMode = true; // Set edit mode
-				let englishTranslation =
-					formData.translations?.find((t) => t.languageCode.toLowerCase() === 'en') || {};
-				let hindiTranslation =
-					formData.translations?.find((t) => t.languageCode.toLowerCase() === 'hi') || {};
+				const validTranslations = formData?.translations?.filter((t) => t != null);
 
-				let bankName = formData.bankId
-					? bankData.find((bank) => bank.uuid === formData.bankId)?.name || ''
-					: '';
-				let stateTitle = formData.stateId
-					? stateData.find((state) => state.extId === formData.stateId)?.name || ''
-					: '';
+				let englishTranslation =
+					validTranslations?.find((t) => t?.languageCode?.toLowerCase() === 'en') || {};
+				let hindiTranslation =
+					validTranslations?.find((t) => t?.languageCode?.toLowerCase() === 'hi') || {};
+
+				let bankName =
+					formData.bankId && !bankData.error
+						? bankData?.find((bank) => bank.uuid === formData.bankId)?.name || ''
+						: '';
+				let stateTitle =
+					formData.stateId && !stateData.error
+						? stateData?.find((state) => state.extId === formData.stateId)?.name || ''
+						: '';
 
 				tcObject = {
 					uuid: formData?.uuid,
@@ -56,4 +65,21 @@
 	}
 </script>
 
-<Add route={$page.route.id} params={$page.params} {tcObject} {stateData} {bankData} {isEditMode} />
+{#if secondaryErrors}
+	<div class=" mb-4">
+		<SubmissionErrorMessage errorMessage={secondaryErrors} />
+	</div>
+{/if}
+
+{#if !primaryDataError}
+	<Add
+		route={$page.route.id}
+		params={$page.params}
+		{tcObject}
+		{stateData}
+		{bankData}
+		{isEditMode}
+	/>
+{:else}
+	<ErrorMessage error={primaryDataError} />
+{/if}

@@ -1,13 +1,18 @@
 import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
 
 export async function GET({ cookies, params, fetch}) {
 	const { id } = params;
 	const authToken = cookies.get('authToken');
 	let res
 
+	if (!authToken) {
+		console.error('Missing Auth Token - Unauthorized Access');
+	}
+
 	try {
 	 res = await fetch(
-			` http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/videos/${id}` , 
+			` ${BASE_URL}/apis/v1/videos/${id}` , 
 			{
 				method: 'GET',
 				headers: {
@@ -15,6 +20,7 @@ export async function GET({ cookies, params, fetch}) {
 					Authorization: `Bearer ${authToken}`
 				}
 		});
+
 		if (!res.ok) {
 			throw new Error('Failed to fetch data');
 		}
@@ -29,6 +35,6 @@ export async function GET({ cookies, params, fetch}) {
 		}
 		return json(data);
 	} catch (error) {
-		return json({ error: error.message }, {status:res.status});
+		return json({ error: error?.message }, {status:res?.status});
 	}
 }

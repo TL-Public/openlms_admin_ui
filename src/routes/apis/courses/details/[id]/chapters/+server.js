@@ -1,37 +1,32 @@
 import { json } from '@sveltejs/kit';
-
+import { BASE_URL } from '$lib/config';
 
 export async function POST({ request, params, cookies }) {
-    const { id } = params;
+	const { id } = params;
 	const authToken = cookies.get('authToken');
-    let res
+	let res;
 
-    try {
-        const body = await request.json();
-         res = await fetch(
-            `http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/courses/${id}/chapters`,
-            {
-                method: 'POST',
-                headers: {
+	try {
+		const body = await request.json();
 
-                    'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`, 
-                    
-                },
-               body: JSON.stringify(body) 
-            }
-        );
+		res = await fetch(`${BASE_URL}/apis/v1/courses/${id}/chapters`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`
+			},
+			body: JSON.stringify(body)
+		});
 
-        if (!res.ok) {
-            throw new Error('Failed to add chapter');
-        }
+		if (!res?.ok) {
+			return json({ status: res.status, error: 'Failed to add chapter' }, { status: res.status });
+		}
 
-        const responseData = await res.json();
-        return json(responseData); 
-
-    } catch (error) {
-        return json({ error: error.message, status:res.status }); 
-    }
+		if (res?.status === 201) {
+			const data = await res.json();
+			return json(data, { status: res.status });
+		}
+	} catch (error) {
+		return json({ error: error.message, status: res.status }, { status: 500 });
+	}
 }
-
-

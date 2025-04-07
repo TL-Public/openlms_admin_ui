@@ -1,36 +1,27 @@
 import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
 
-export async function GET({cookies}) {
+export async function GET({ cookies }) {
 	const authToken = cookies.get('authToken');
-	let res
+	let res;
 
 	try {
-		
-
-		 res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/trainee-profiles`,
-			{
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				}
+		res = await fetch(`${BASE_URL}/apis/v1/trainee-profiles`, {
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`
 			}
-		);
-        if(!res.ok){
-            throw new Error('Failed to fetch data')
-        }
+		});
 
-        if (res.status != 200) {
-			throw new Error('Failed to fetch data');
+		if (!res?.ok) {
+			return json({ status: res.status, error: 'Failed to fetch data' }, { status: res.status });
 		}
-		const data = await res.json();
-		if (data?.length === 0 || Object.keys(data)?.length === 0) {
-			throw new Error('Data not found');
+
+		if (res?.status === 200) {
+			const data = await res.json();
+			return json(data);
 		}
-        return json(data)
 	} catch (error) {
-		return json({ status: res.status, error: error.message },{ status: res.status||500 })
+		return json({ status: res.status, error: error.message }, { status: 500 });
 	}
 }
-
-

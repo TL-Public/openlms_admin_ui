@@ -18,7 +18,7 @@
 		{/each}
 	</div>
 	<div>
-		<AboutCourseCard courseData={courseData} />
+		<AboutCourseCard courseData={courseData}/>
 	</div>
 <!-- </section> -->
 

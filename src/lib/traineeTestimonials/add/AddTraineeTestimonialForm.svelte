@@ -1,32 +1,34 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { message } from '/src/routes/traineeTestimonials/testimonialStore.js';
 	import InputField from '$lib/components/InputField.svelte';
 	// import BreadCrumbs from '$lib/components/BreadCrumbs.svelte';
 	import TextDescriptionField from '$lib/components/TextDescriptionField.svelte';
 	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
 	import ReviewForm from '$lib/components/ReviewForm.svelte';
-    import DropDown from "$lib/components/DropDown.svelte"
+	import DropDown from '$lib/components/DropDown.svelte';
 	import Button from '$lib/components/Button.svelte';
 
 	import MultiStepProgressComponent from '$lib/components/MultiStepProgressComponent.svelte';
-
+	import { handleRedirection } from '$lib/utils/helper.js';
+	import { page } from '$app/stores';
+	import {showLoadingSpinner} from '/src/routes/store.js'
 
 	export let route;
 	export let params;
-    export let coursesList=[]
+	export let coursesList = [];
 	export let formObject = {
 		nameEn: '',
 		designationEn: '',
 		testimonialTextEn: '',
-        placeEn:'',
+		placeEn: '',
 		nameHi: '',
 		designationHi: '',
 		testimonialTextHi: '',
-		courseUuid:'',
-        placeHi:'',
+		courseUuid: '',
+		placeHi: '',
 		uuid: '',
 		method: ''
 	};
@@ -36,12 +38,16 @@
 	let creationError = false;
 	let method = 'post';
 	let errorMessage = '';
-	let steps=[{number:1, text:'Details'},{number:2, text:'Review'}]
-	let currentStep = 1
-	let isSubmitting=false
+	let steps = [
+		{ number: 1, text: 'Details' },
+		{ number: 2, text: 'Review' }
+	];
+	let currentStep = 1;
+	let isSubmitting = false;
+	const url = $page.url;
 
-    export let selectedCourse=''
-    export let selectedCourseUuid=''
+	export let selectedCourse = '';
+	export let selectedCourseUuid = '';
 
 	onMount(() => {
 		if (route.includes('edit')) {
@@ -51,11 +57,18 @@
 		}
 	});
 
-    function handleCancelSelectionInDropDown(){
-        selectedCourse = null;
-        selectedCourseUuid = null;
-        validationErrors = '';
-    }
+	
+	$: if (isSubmitting === true){
+		showLoadingSpinner.set(true)
+	} else {
+		showLoadingSpinner.set(false)
+	}
+
+	function handleCancelSelectionInDropDown() {
+		selectedCourse = null;
+		selectedCourseUuid = null;
+		validationErrors = '';
+	}
 
 	// Enhance function
 
@@ -66,14 +79,12 @@
 		// This is done becuase enhance function is being triggered when the pdf is opened in another window
 		if (search == '?/review') {
 			saved = !saved;
-			currentStep=2
+			currentStep = 2;
 		}
-
 
 		if (search == '?/final') {
-			isSubmitting=true;
+			isSubmitting = true;
 		}
-
 
 		Object.keys(formObject)?.forEach((key) => {
 			formData.set(key, formObject[key]);
@@ -82,13 +93,14 @@
 		formData.set('method', method);
 		formData.set('courseUuid', selectedCourseUuid);
 
-		if(!selectedCourseUuid){
-			validationErrors='This field should not be empty.'
+		if (!selectedCourseUuid) {
+			validationErrors = 'This field should not be empty.';
 		}
 
 		// If there are validation errors, cancel the submission and handle errors
 		if (validationErrors) {
 			saved = false;
+			isSubmitting=false
 			cancel();
 			return;
 		}
@@ -99,8 +111,9 @@
 
 			// `result` is an `ActionResult` object
 			if (search == '?/final') {
-				isSubmitting=true
-				if (!Object.keys(result?.data)?.includes('error')) {
+				console.log('result', result);
+				isSubmitting = true;
+				if (result.type == 'success') {
 					if (method === 'POST') {
 						goto(`/traineeTestimonials`);
 						message.set(`Successfully added trainee testiomonial of "${formObject?.nameEn}"!`);
@@ -109,15 +122,21 @@
 						goto(`/traineeTestimonials`);
 						message.set(`Successfully edited trainee testiomonial of "${formObject?.nameEn}"!`);
 					}
-					isSubmitting = false;
+				}
 
-				} else {
+				if (result.type == 'failure') {
 					isSubmitting = false;
 					formObject = formObject;
 					creationError = true;
-					isSubmitting=false
+					isSubmitting = false;
+
 					if (result?.data?.error) {
 						errorMessage = result?.data?.error;
+						if (result?.status === 401) {
+							handleRedirection(result.status, url.pathname, url.search);
+						} else {
+							//handle other errors
+						}
 					}
 				}
 			}
@@ -130,9 +149,13 @@
 
 	function handlePrevious() {
 		saved = false;
-		currentStep=1
+		currentStep = 1;
 		formObject = formObject;
 	}
+
+	onDestroy(()=>{
+		showLoadingSpinner.set(false)
+	})
 </script>
 
 <div class=" text-darkGray">
@@ -142,11 +165,8 @@
 		</div>
 	{/if}
 
-
 	<div class="w-full max-w-80 mx-auto">
-		<MultiStepProgressComponent 
-		{steps}
-		{currentStep}/>
+		<MultiStepProgressComponent {steps} {currentStep} />
 	</div>
 
 	<form
@@ -166,16 +186,16 @@
 
 				<!-- First Row -->
 				<div class="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-20 mb-4">
-                    <DropDown
-                    on:handleCancelSelection={handleCancelSelectionInDropDown}
-                    bind:selectedItemName={selectedCourse}
-                    bind:selectedItemUuid={selectedCourseUuid}
-                    options={coursesList}
-                    validationErrors={validationErrors || ''}
-                    placeholder={'Select course'}
-                    type="courseList"
-                    disabled={coursesList?.length===0}
-                />
+					<DropDown
+						on:handleCancelSelection={handleCancelSelectionInDropDown}
+						bind:selectedItemName={selectedCourse}
+						bind:selectedItemUuid={selectedCourseUuid}
+						options={coursesList}
+						validationErrors={validationErrors || ''}
+						placeholder={'Select course'}
+						type="courseList"
+						disabled={coursesList?.length === 0}
+					/>
 				</div>
 
 				<hr class="my-4 horizontal-line" />
@@ -192,22 +212,22 @@
 				</div>
 
 				<div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-4 gap-2 lg:gap-20">
-						<InputField
-							label={'Name'}
-							placeholder={'Enter name'}
-							name={'nameEn'}
-							bind:value={formObject.nameEn}
-							required
-						/>
-						<InputField
-							label={'Designation'}
-							placeholder={'Enter Designation'}
-							name={'designationEn'}
-							bind:value={formObject.designationEn}
-							required
-						/>
+					<InputField
+						label={'Name'}
+						placeholder={'Enter name'}
+						name={'nameEn'}
+						bind:value={formObject.nameEn}
+						required
+					/>
+					<InputField
+						label={'Designation'}
+						placeholder={'Enter Designation'}
+						name={'designationEn'}
+						bind:value={formObject.designationEn}
+						required
+					/>
 				</div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-4 gap-2 lg:gap-20">
+				<div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-4 gap-2 lg:gap-20">
 					<div class="grid gap-4">
 						<InputField
 							label={'Place'}
@@ -235,27 +255,26 @@
 				</div>
 
 				<div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-4 gap-2 lg:gap-20">
-						<InputField
-							label={'Name'}
-							placeholder={'Enter name'}
-							name={'nameHi'}
-							bind:value={formObject.nameHi}
-						/>
-						<InputField
-							label={'Designation'}
-							placeholder={'Enter designation'}
-							name={'designationHi'}
-							bind:value={formObject.designationHi}
-						/>
+					<InputField
+						label={'Name'}
+						placeholder={'Enter name'}
+						name={'nameHi'}
+						bind:value={formObject.nameHi}
+					/>
+					<InputField
+						label={'Designation'}
+						placeholder={'Enter designation'}
+						name={'designationHi'}
+						bind:value={formObject.designationHi}
+					/>
 				</div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-4 gap-2 lg:gap-20">
+				<div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-4 gap-2 lg:gap-20">
 					<div class="grid gap-4">
 						<InputField
 							label={'Place'}
 							placeholder={'Enter place'}
 							name={'placeEn'}
 							bind:value={formObject.placeHi}
-							required
 						/>
 					</div>
 				</div>
@@ -314,21 +333,21 @@
 
 		<div class="flex justify-end gap-4 flex-wrap">
 			{#if saved}
-			<Button
-			type="button"
-			btnType="secondary"
-			customClass={'inline-block w-full bp-420px:w-fit'}
-      disabled={isSubmitting}        
-			on:click={handlePrevious}>Edit</Button
-		>
+				<Button
+					type="button"
+					btnType="secondary"
+					customClass={'inline-block w-full bp-420px:w-fit'}
+					disabled={isSubmitting}
+					on:click={handlePrevious}>Edit</Button
+				>
 			{:else}
-			<Button
-			type="button"
-			btnType="secondary"
-			customClass={'inline-block w-full bp-420px:w-fit flex justify-center'}
-			disabled={isSubmitting}
-			on:click={handleGoBack}>Cancel</Button
-		>
+				<Button
+					type="button"
+					btnType="secondary"
+					customClass={'inline-block w-full bp-420px:w-fit flex justify-center'}
+					disabled={isSubmitting}
+					on:click={handleGoBack}>Cancel</Button
+				>
 			{/if}
 			<Button
 				btnType="primary"
@@ -337,7 +356,6 @@
 				disabled={isSubmitting}
 				formaction={saved ? '?/final' : '?/review'}>{saved ? 'Submit' : 'Save & Next'}</Button
 			>
-
 		</div>
 	</form>
 </div>

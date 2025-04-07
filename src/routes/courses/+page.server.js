@@ -1,3 +1,8 @@
+import { redirect, fail } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
+import { getErrorMessage } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
+
 let modifiedFormdata;
 let originalFormData;
 let id = '';
@@ -17,21 +22,6 @@ function preserveFormData() {
 		formData.delete('uuid');
 		formData.delete('method');
 		modifiedFormdata = Object.fromEntries(formData.entries());
-
-		// const translations = [
-		// 	{
-		// 		languageCode: 'en',
-		// 		title: formData.get('titleEn'),
-		// 		description: formData.get('descriptionEn'),
-		// 		aboutVideoUrl: formData.get('urlEn'),
-		// 	},
-		// 	{
-		// 		languageCode: 'hi',
-		// 		title: formData.get('titleHi'),
-		// 		description: formData.get('descriptionHi'),
-		// 		aboutVideoUrl: formData.get('urlHi'),
-		// 	},
-		// ];
 
 		// Construct translations
 		const englishTranslation = {
@@ -87,8 +77,9 @@ function preserveFormData() {
 
 export const actions = {
 	review: preserveFormData(),
-	final: async ({ cookies }) => {
+	final: async ({ cookies, url }) => {
 		const data = payLoad;
+
 		const authToken = cookies.get('authToken');
 		const dataToSend = JSON.stringify(data);
 		const headers = {
@@ -103,49 +94,49 @@ export const actions = {
 		let response;
 		try {
 			if (method === 'POST') {
-				response = await fetch(
-					'http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/courses',
-					{
-						method: 'POST',
-						body: dataToSend,
-						headers
-					}
-				);
-				if (!response.ok || !response.status == 201) {
+				response = await fetch(`${BASE_URL}/apis/v1/courses`, {
+					method: 'POST',
+					body: dataToSend,
+					headers
+				});
+
+				if (!response.ok) {
+					let { errorMsg } = getErrorMessage({
+						status: response?.status,
+						action: userActions.ADD,
+						module: resourceNames.COURSE
+					});
+
 					if (response.status == 409) {
 						let responseBody = await response.text();
-						return {
-							error: `Failed to submit form. ${responseBody}. Status: ${response.status}`,
-							data: originalFormData
-						};
+						errorMsg = responseBody;
 					}
-					if (response.status == 404) {
-						let responseBody = await response.json();
-						return {
-							error: `Failed to submit form. ${responseBody.error}. Error Code: ${responseBody.errorCode} `,
-							data: originalFormData
-						};
-					}
-					return {
-						error: `Failed to submit form. Please try again. Status: ${response.status} `,
+
+					return fail(response.status, {
+						error: errorMsg,
+						success: false,
 						data: originalFormData
-					};
+					});
 				}
 			} else if (method === 'PUT') {
+				response = await fetch(`${BASE_URL}/apis/v1/courses/${id}`, {
+					method: 'PUT',
+					body: dataToSend,
+					headers
+				});
 
-				response = await fetch(
-					`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/courses/${id}`,
-					{
-						method: 'PUT',
-						body: dataToSend,
-						headers
-					}
-				);
-				if (!response.ok || !response.status == 200) {
-					return {
-						error: `Failed to submit form. Please try again. Status: ${response.status}`,
+				if (!response.ok) {
+					const { errorMsg } = getErrorMessage({
+						status: response?.status,
+						action: userActions.EDIT,
+						module: resourceNames.COURSE
+					});
+
+					return fail(response.status, {
+						error: errorMsg,
+						success: false,
 						data: originalFormData
-					};
+					});
 				}
 			} else {
 				throw new Error('Invalid method');
@@ -158,31 +149,40 @@ export const actions = {
 				const formDataForImage = new FormData();
 				formDataForImage.append('file', image, image.name);
 
-				const responseForImage = await fetch(
-					`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/courses/${result.uuid}/image`,
-					{
-						method: 'POST',
-						body: formDataForImage,
-						headers: headersForImageUpload
-					}
-				);
+				const responseForImage = await fetch(`${BASE_URL}/apis/v1/courses/${result.uuid}/image`, {
+					method: 'POST',
+					body: formDataForImage,
+					headers: headersForImageUpload
+				});
 
 				if (!responseForImage?.ok) {
-					return {
-						error: `Successfully ${method?.toLowerCase() === 'post' ? 'added' : 'edited'} course details but failed to ${method?.toLowerCase() === 'post' ? 'add' : 'edit'} image. Please try again. Status: ${responseForImage.status}`,
+					// cases where customsied error messages are required (like here) is handled on case to case basis
+					if (response.status == 401) {
+						return fail(responseForImage.status, {
+							error: 'Your session has expired',
+							success: false,
+							data: originalFormData
+						});
+					}
+
+					const errMsg = `Successfully ${method?.toLowerCase() === 'post' ? 'added' : 'edited'} course details but failed to ${method?.toLowerCase() === 'post' ? 'add' : 'edit'} image. Please try again. Status: ${responseForImage.status}`;
+					return fail(responseForImage.status, {
+						error: errMsg,
+						success: false,
 						data: originalFormData
-					};
+					});
 				}
 			}
 
 			return { success: true, data: result, status: response?.status };
 		} catch (err) {
 			console.error(err);
-			return {
-				error: `Failed to submit form. Please try again. Status: ${response.status}`,
-				data: originalFormData,
-				status: response?.status
-			};
+
+			return fail(response.status, {
+				error: err.message,
+				success: false,
+				data: originalFormData
+			});
 		}
 	}
 };

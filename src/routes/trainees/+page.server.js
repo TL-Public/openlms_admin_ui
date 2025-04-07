@@ -1,9 +1,13 @@
+import { BASE_URL } from '$lib/config';
+import { fail } from '@sveltejs/kit';
+import { getErrorMessage } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
 
 let modifiedFormdata;
 let originalFormData;
 let id = '';
 let method = '';
-let image=''
+let image = '';
 let payLoad;
 
 function preserveFormData() {
@@ -19,64 +23,63 @@ function preserveFormData() {
 		formData.delete('method');
 		modifiedFormdata = Object.fromEntries(formData.entries());
 
-		if(method?.toLowerCase()?.trim() === 'post') {payLoad = {
-			email:modifiedFormdata.email,
-			username:modifiedFormdata.username,
-			traineeProfileDto:{
-				enrollId:modifiedFormdata.username,
-				candidateName:modifiedFormdata.candidateName,
-				 // Personal Information
-				fatherNameOrHusbandName: modifiedFormdata.fatherNameOrHusbandName,
-				maritalStatus: modifiedFormdata.maritalStatus,
-				sex: modifiedFormdata.sex,
-				dateOfBirth: modifiedFormdata.dateOfBirth,
-				age: modifiedFormdata.age,
-				religion: modifiedFormdata.religion,	
-				caste: modifiedFormdata.caste,
-				education: modifiedFormdata.education,
-				personWithDisability: false,
-				aadharCardNo: modifiedFormdata.aadharCardNo,
-			
-				// Contact Information
-				mobileNumber1: modifiedFormdata.mobileNumber1,
-				email:modifiedFormdata.email,
-			
-			
-				// Residential Information
-				candidateAddress: modifiedFormdata.candidateAddress,
-				district: modifiedFormdata.district,	
-				pincode: modifiedFormdata.pincode,
+		if (method?.toLowerCase()?.trim() === 'post') {
+			payLoad = {
+				email: modifiedFormdata.email,
+				username: modifiedFormdata.username,
+				traineeProfileDto: {
+					enrollId: modifiedFormdata.username,
+					candidateName: modifiedFormdata.candidateName,
+					// Personal Information
+					fatherNameOrHusbandName: modifiedFormdata.fatherNameOrHusbandName,
+					maritalStatus: modifiedFormdata.maritalStatus,
+					sex: modifiedFormdata.sex,
+					dateOfBirth: modifiedFormdata.dateOfBirth,
+					age: modifiedFormdata.age,
+					religion: modifiedFormdata.religion,
+					caste: modifiedFormdata.caste,
+					education: modifiedFormdata.education,
+					personWithDisability: false,
+					aadharCardNo: modifiedFormdata.aadharCardNo,
 
-			}}}
-			if(method?.toLowerCase()?.trim() === 'put') 
-			{payLoad = {
+					// Contact Information
+					mobileNumber1: modifiedFormdata.mobileNumber1,
+					email: modifiedFormdata.email,
+
+					// Residential Information
+					candidateAddress: modifiedFormdata.candidateAddress,
+					district: modifiedFormdata.district,
+					pincode: modifiedFormdata.pincode
+				}
+			};
+		}
+		if (method?.toLowerCase()?.trim() === 'put') {
+			payLoad = {
 				uuid: id,
-				email:modifiedFormdata.email,
+				email: modifiedFormdata.email,
 				// username:modifiedFormdata.username,
-			
-				candidateName:modifiedFormdata.candidateName,
-				 // Personal Information
+
+				candidateName: modifiedFormdata.candidateName,
+				// Personal Information
 				fatherNameOrHusbandName: modifiedFormdata.fatherNameOrHusbandName,
 				maritalStatus: modifiedFormdata.maritalStatus,
 				sex: modifiedFormdata.sex,
 				dateOfBirth: modifiedFormdata.dateOfBirth,
 				age: modifiedFormdata.age,
-				religion: modifiedFormdata.religion,	
+				religion: modifiedFormdata.religion,
 				caste: modifiedFormdata.caste,
 				education: modifiedFormdata.education,
 				personWithDisability: false,
 				aadharCardNo: modifiedFormdata.aadharCardNo,
-			
+
 				// Contact Information
 				mobileNumber1: modifiedFormdata.mobileNumber1,
-			
-			
+
 				// Residential Information
 				candidateAddress: modifiedFormdata.candidateAddress,
-				district: modifiedFormdata.district,	
-				pincode: modifiedFormdata.pincode,}
-
-		
+				district: modifiedFormdata.district,
+				pincode: modifiedFormdata.pincode
+			};
 		}
 		return {
 			data: originalFormData
@@ -90,44 +93,57 @@ export const actions = {
 		const data = payLoad;
 		const authToken = cookies.get('authToken');
 		const dataToSend = JSON.stringify(data);
-		const headers =  {
+		const headers = {
 			'Content-Type': 'application/json',
-			'Authorization': `Bearer ${authToken}`
+			Authorization: `Bearer ${authToken}`
 		};
 
 		const headersForImageUpload = {
-			'Authorization': `Bearer ${authToken}`
+			Authorization: `Bearer ${authToken}`
 		};
 
 		let response;
 		try {
 			if (method === 'POST') {
-				response = await fetch(
-					'http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/trainees',
-					{
-						method: 'POST',
-						body: dataToSend,
-						headers,
-					}
-				);
-				if (!response.ok || !response.status == 201) {
-									if(response.status==409) 
-										return { error: 'Failed to submit form, trainee credentials already exist. Please try again!', data: originalFormData, status:response.status };
-										return { error: 'Failed to submit form. Please try again!', data: originalFormData, status:response.status };
-								}
+				response = await fetch(`${BASE_URL}/apis/v1/trainees`, {
+					method: 'POST',
+					body: dataToSend,
+					headers
+				});
+
+				if (!response.ok) {
+					let { errorMsg } = getErrorMessage({
+						status: response?.status,
+						action: userActions.ADD,
+						module: resourceNames.TRAINEE
+					});
+
+					return fail(response.status, {
+						error: errorMsg,
+						success: false,
+						data: originalFormData
+					});
+				}
 			} else if (method === 'PUT') {
-				response = await fetch(
-					`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/trainee-profiles/${id}`,
-					{
-						method: 'PUT',
-						body: dataToSend,
-						headers
-					}
-				);
-				if (!response.ok || !response.status == 200) {
-									return { error: 'Failed to submit form. Please try again!', data: originalFormData, status:response.status };
-								}
-					
+				response = await fetch(`${BASE_URL}/apis/v1/trainee-profiles/${id}`, {
+					method: 'PUT',
+					body: dataToSend,
+					headers
+				});
+
+				if (!response.ok) {
+					let { errorMsg } = getErrorMessage({
+						status: response?.status,
+						action: userActions.EDIT,
+						module: resourceNames.TRAINEE
+					});
+
+					return fail(response.status, {
+						error: errorMsg,
+						success: false,
+						data: originalFormData
+					});
+				}
 			} else {
 				throw new Error('Invalid method');
 			}
@@ -140,7 +156,7 @@ export const actions = {
 			// 	formDataForImage.append('file', image, image.name);
 
 			// 	const responseForImage = await fetch(
-			// 		`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/trainee-profile/${result.uuid}/image`,
+			// 		`${BASE_URL}/apis/v1/trainee-profile/${result.uuid}/image`,
 			// 		{
 			// 			method: 'POST',
 			// 			body: formDataForImage,
@@ -153,9 +169,13 @@ export const actions = {
 			// 							}
 			// }
 
-			return { success: true, data: result, status:response.status };
+			return { success: true, data: result, status: response.status };
 		} catch (err) {
-			return { error: 'Failed to submit form. Please try again!', data: originalFormData, status:response?.status };
+			return fail(response.status, {
+				error: err.message,
+				success: false,
+				data: originalFormData
+			});
 		}
 	}
 };

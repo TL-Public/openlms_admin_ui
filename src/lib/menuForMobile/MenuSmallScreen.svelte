@@ -1,7 +1,16 @@
 <script>
+	import { userDetails } from '/src/routes/store.js';
+	import Button from '$lib/components/Button.svelte';
+	import { goto } from '$app/navigation';
+	import { roles } from '$lib/config.js';
+	import { onMount } from 'svelte';
+	import { menuItems } from '$lib/data.js';
+
+
 	export let burgerMenuOpen;
 	export let menuItemClicked;
 	export let loggedIn;
+	let filteredSidebarList = [];
 	let sidebarList = [
 		{
 			name: 'Dashboard',
@@ -46,6 +55,10 @@
 		{
 			name: 'Trainee Testimonials',
 			link: '/traineeTestimonials'
+		},
+		{
+			name: 'Configurations',
+			link: '/config'
 		}
 	];
 
@@ -53,12 +66,45 @@
 		menuItemClicked = true;
 		burgerMenuOpen = false;
 	}
+
+	async function logout() {
+
+		await fetch('/apis/auth/logout', { method: 'POST' });
+		goto('/login');
+	}
+
+	// ---------------------------------- Role based functions --------------------------------
+	function roleBasedAcessSetting() {
+		// Filter the sidebar list by checking if the item's key is not in the restrictedMenuList
+		filteredSidebarList = sidebarList?.filter(
+			(item) => !roles[$userDetails?.role]?.restrictedMenuList?.includes(item?.key)
+		);
+
+		if ([6, 7, 8, 9].includes(Number($userDetails?.role))) {
+			filteredSidebarList.forEach((item) => {
+				if (item?.key === menuItems?.TRAINING_CENTERS) {
+					item.name = 'Center Details';
+					item.link = `/trainingCenters/${$userDetails?.rsetiId}/details`;
+				}
+			});
+		}
+	}
+
+	onMount(() => {
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe(); // Cleanup subscription
+	});
 </script>
 
 <!-- Menu items on smaller screen -->
 
 <div
-	class=" md:hidden fixed w-72 z-20 mx-0 flow-root h-full bg-white transition-all ease-in-out duration-500 border-l overflow-y-auto {burgerMenuOpen
+	class=" md:hidden fixed w-72 z-20 mx-0 flow-root h-full bg-white shadow-md transition-all ease-in-out duration-500 border-l overflow-y-auto {burgerMenuOpen
 		? 'right-0'
 		: '-right-72'}"
 >
@@ -69,7 +115,25 @@
 				on:click={handleMenuItemClick}
 				on:keypress={handleMenuItemClick}
 			>
-				{#each sidebarList as item, index (index)}
+			{#if $userDetails?.name}
+					<li class=" w-full flex gap-4 items-center mt-auto   pt-2 pl-4">
+						<div
+							class="flex items-center justify-center w-8 h-8 bg-orange-100 font-medium text-white capitalize text-xl rounded-full leading-none m-0 p-0"
+						>
+							{$userDetails?.name ? $userDetails.name[0] : ''}
+						</div>
+						<div class="flex flex-col">
+							 <span class="font-medium text-base">
+								 {$userDetails?.name}
+							</span>
+							<a href="/userProfile" class=" text-sm pb-2 text-blue-600 underline hover:text-blue-800">View Profile</a>
+						</div>
+					</li>
+					<div class="p-4 pb-6 pt-0 border-b w-full">
+						<Button type='submit' customClass={'w-full'} on:click={logout}>Logout</Button>
+					</div>
+				{/if}
+				{#each filteredSidebarList as item, index (index)}
 					<li class="w-full p-2 border-b text-center"><a href={item.link}>{item.name}</a></li>
 				{/each}
 			</ul>

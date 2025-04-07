@@ -1,5 +1,5 @@
 <script>
-	import { onMount, onDestroy, tick } from "svelte";
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { createEventDispatcher } from 'svelte';
 	import { languageArray } from '/src/config/constants.js';
 	import InputField from '$lib/components/InputField.svelte';
@@ -8,13 +8,16 @@
 	import DropDown from '$lib/components/DropDown.svelte';
 	import LineLoader from '$lib/components/LineLoader.svelte';
 	import Button from '$lib/components/Button.svelte';
-
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { getErrorMessage, handleRedirection } from '$lib/utils/helper.js';
+	import { resourceNames, userActions } from '$lib/data.js';
 
 	export let chapterUuid;
 	export let courseUuid;
 	export let selectedLanguage;
 	export let orderNumber;
-	export let chapterData={}
+	export let chapterData = {};
 
 	let dispatch = createEventDispatcher();
 	let errorMessage = '';
@@ -24,7 +27,7 @@
 	let selectedItemName = selectedLanguage;
 
 	let formObject = {
-		url: '',
+		url: ''
 	};
 
 	$: dataToSend = {
@@ -33,15 +36,15 @@
 		languageCode: selectedItemCode
 	};
 
-	function handleErrorMessageClose(){
-		errorMessage=''
+	function handleErrorMessageClose() {
+		errorMessage = '';
 	}
 
 	// Reactively update `selectedItemCode` when `selectedItemName` changes
-	$: {   
+	$: {
 		if (selectedItemName) {
 			getCodeByName(selectedItemName);
-			validationErrors=''
+			validationErrors = '';
 		}
 	}
 
@@ -50,17 +53,17 @@
 		for (let item of languageArray) {
 			if (item?.name?.toLowerCase().trim() === name?.toLowerCase().trim()) {
 				selectedItemCode = item.code;
-				dataToSend.languageCode=selectedItemCode
+				dataToSend.languageCode = selectedItemCode;
 				return;
 			}
 			if (item?.code?.toLowerCase().trim() === name?.toLowerCase().trim()) {
 				selectedItemName = item.name;
 				selectedItemCode = item.code;
-				dataToSend.languageCode=selectedItemCode
+				dataToSend.languageCode = selectedItemCode;
 				return;
 			}
 		}
-		dataToSend=dataToSend
+		dataToSend = dataToSend;
 		selectedItemCode = ''; // Reset if no match is found
 	}
 
@@ -71,18 +74,19 @@
 
 	function handleCancel() {
 		errorMessage = '';
-		validationErrors=''
+		validationErrors = '';
 		dispatch('handleCancelSubmission');
 	}
 
 	function handleCancelSelectionInDropDown() {
 		formObject.languageCode = '';
-		selectedItemCode=''
+		selectedItemCode = '';
 		selectedItemName = '';
-		validationErrors=''
+		validationErrors = '';
 	}
 
 	async function handleSubmit() {
+		let response;
 		try {
 			errorMessage = '';
 			isSubmitting = true;
@@ -90,19 +94,18 @@
 
 			if (!dataToSend?.languageCode) {
 				validationErrors = `The field should not be empty.`;
-				await tick()
+				await tick();
 				return;
 			}
-			 // Validate if the URL already exists
-			 const duplicate = chapterData?.videos?.some((video) => video?.url === formObject?.url);
-			 
-				if (duplicate) {
-					errorMessage = `Failed to add video. Video already exists.`;
-					return;
-				}
+			// Validate if the URL already exists
+			const duplicate = chapterData?.videos?.some((video) => video?.url === formObject?.url);
 
-	
-			const response = await fetch(
+			if (duplicate) {
+				errorMessage = `Failed to add video. Video already exists.`;
+				return;
+			}
+
+			response = await fetch(
 				`/apis/courses/details/${courseUuid}/chapters/${chapterUuid}/videos?courseUuid=${courseUuid}&&chapterUuid=${chapterUuid}`,
 				{
 					method: 'POST',
@@ -110,29 +113,32 @@
 					body: JSON.stringify(dataToSend)
 				}
 			);
-
+			console.log('response', response)
 			if (!response.ok) {
-				errorMessage = `Failed to add video. Please try again!`;
-				throw new Error('Failed to add video');
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: response?.status,
+					action: userActions.ADD,
+					module: resourceNames.VIDEO
+				});
+
+				if (redirectUser) {
+					handleRedirection(response.status, $page.url.pathname, $page.url.search);
+				}
+
+				errorMessage = errorMsg;
 			}
+
 			const resultOfApiCall = await response.json();
-			let result
-			
+
+			let result;
+
 			if (!resultOfApiCall.error) {
-				result = resultOfApiCall.responseData
-				if(resultOfApiCall?.status===201){
+				result = resultOfApiCall.responseData;
+				if (response?.status === 201) {
 					dispatch('handleAddVideo', { result });
-				}
-			} else {
-				if(resultOfApiCall?.status===409){
-				errorMessage = `Failed to add video. Video already exists.`
-				}
-				else{
-					errorMessage = `Failed to add video. Please try again.`;
 				}
 			}
 		} catch (error) {
-			console.error('Error:', error);
 		} finally {
 			isSubmitting = false;
 			if (!errorMessage && !validationErrors) {
@@ -143,35 +149,42 @@
 
 	onMount(() => {
 		// Disable scrolling on the main page
-		document.body.style.overflow = "hidden";
-
+		document.body.style.overflow = 'hidden';
 	});
 
 	onDestroy(() => {
 		// Re-enable scrolling when the modal is closed
-		document.body.style.overflow = "";
-
+		document.body.style.overflow = '';
 	});
 </script>
 
 <div class="relative z-10" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-	<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"
-	on:click|stopPropagation={handleOutsideClick}></div>
+	<div
+		class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+		aria-hidden="true"
+		on:click|stopPropagation={handleOutsideClick}
+	></div>
 
-	<form class="fixed inset-0 z-10 w-screen overflow-y-auto" id="form" on:submit|preventDefault={handleSubmit}>
-		<div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+	<form
+		class="fixed inset-0 z-10 w-screen overflow-y-auto"
+		id="form"
+		on:submit|preventDefault={handleSubmit}
+	>
+		<div class="flex min-h-full justify-center p-4 text-center items-center sm:p-0">
 			<div
-				class="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6"
+				class="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 w-full sm:w-full sm:max-w-lg sm:p-6"
 			>
-			<div class="pb-2">
-				{#if isSubmitting}
-				<LineLoader />
-				{/if}
-			</div>
+				<div class="pb-2">
+					{#if isSubmitting}
+						<LineLoader />
+					{/if}
+				</div>
 				{#if errorMessage}
 					<div class="mb-4">
-						<DeletionErrorMessage {errorMessage} 
-						on:handleErrorMessageClose={handleErrorMessageClose}/>
+						<DeletionErrorMessage
+							{errorMessage}
+							on:handleErrorMessageClose={handleErrorMessageClose}
+						/>
 					</div>
 				{/if}
 				<div class="mb-2">
@@ -190,7 +203,9 @@
 						/>
 					</div>
 					<div class="mt-2 w-full">
-    				<h1 class="block text-sm font-medium leading-6 text-gray-900 mb-1 capitalize">Language</h1>
+						<h1 class="block text-sm font-medium leading-6 text-gray-900 mb-1 capitalize">
+							Language
+						</h1>
 						<DropDown
 							on:handleCancelSelection={handleCancelSelectionInDropDown}
 							bind:selectedItemName
@@ -203,9 +218,9 @@
 				</div>
 
 				<div class="mt-5 sm:mt-4 flex gap-2 justify-end">
-					<Button type='submit' disabled={isSubmitting || errorMessage }>Submit</Button>
 					<Button btnType="secondary" disabled={isSubmitting} on:click={handleCancel}>Cancel</Button
 					>
+					<Button type="submit" disabled={isSubmitting || errorMessage}>Submit</Button>
 				</div>
 			</div>
 		</div>

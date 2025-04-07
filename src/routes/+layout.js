@@ -1,21 +1,36 @@
 import { String_Constants } from '/src/config/constants.js';
+import { getErrorMessage, handleRedirection } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
 
-export async function load({ fetch }) {
+export async function load({ fetch, data, url }) {
 	const fetchCourseListDetails = async () => {
+		let res;
 		try {
-			const res = await fetch(`/apis/courses`);
-			if (!res.ok) {
-				throw new Error('Data not found');
+			res = await fetch(`/apis/courses`);
+
+			if (!res.ok || res.status != 200) {
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: res?.status,
+					action: userActions.LIST,
+					module: resourceNames.COURSE
+				});
+
+				// if (redirectUser) {
+				// 	handleRedirection(res.status, url.pathname, url.search);
+				// }
+
+				return { error: errorMsg };
 			}
-			if (res.status !== 200) {
-				throw new Error('Data not found');
-			}
+
 			const data = await res.json();
+
 			if (data?.length === 0 || Object.keys(data)?.length === 0) {
 				throw new Error('Data not found');
 			}
+
 			return data;
 		} catch (err) {
+			// handleRedirection(res.status, url.pathname, url.search);
 			return { error: err.message };
 		}
 	};
@@ -24,13 +39,21 @@ export async function load({ fetch }) {
 		let res;
 		try {
 			res = await fetch(`/apis/trainingCenters`);
-			if (!res.ok) {
-				throw new Error('Data not found');
+			if (!res.ok || res.status != 200) {
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: res?.status,
+					action: userActions.LIST,
+					module: resourceNames.TRAINING_CENTER
+				});
+
+				// if (redirectUser) {
+				// 	handleRedirection(res.status, url.pathname, url.search);
+				// }
+
+				return { error: errorMsg };
 			}
-			if (res.status !== 200) {
-				throw new Error('Data not found');
-			}
-			let data = await res.json();
+
+			const data = await res.json();
 
 			//checking for a length
 			if (data?.length === 0 || Object.keys(data)?.length === 0) {
@@ -52,43 +75,60 @@ export async function load({ fetch }) {
 
 			return rsetiData;
 		} catch (err) {
+			// handleRedirection(res.status, url.pathname, url.search);
 			return { status: res.status, error: err.message };
 		}
 	};
 
 	const fetchStateList = async () => {
-		const res = await fetch(` /apis/states`);
-		if (!res.ok) {
-			throw new Error('Data not found');
-		}
-		if (res.status !== 200) {
-			throw new Error('Data not found');
-		}
-		let data = await res.json();
+		let res;
+		try {
+			const res = await fetch(` /apis/states`);
 
-		//checking for a length
-		if (data?.length === 0 || Object.keys(data)?.length === 0) {
-			return [
-				{
-					title: 'No State Found'
-				}
-			];
-		}
+			if (!res.ok || res.status != 200) {
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: res?.status,
+					action: userActions.LIST,
+					module: resourceNames.STATE
+				});
 
-		// adding all states option to the list
-		data = [
-			{
-				title: String_Constants.ALL_STATES,
-				uuid: '0'
-			},
-			...data
-		];
-		return data;
+				// if (redirectUser) {
+				// 	handleRedirection(res.status, url.pathname, url.search);
+				// }
+
+				return { error: errorMsg };
+			}
+
+			const data = await res.json();
+
+			//checking for a length
+			if (data?.length === 0 || Object.keys(data)?.length === 0) {
+				return [
+					{
+						title: 'No State Found'
+					}
+				];
+			}
+
+			// adding all states option to the list
+			// data = [
+			// 	{
+			// 		title: String_Constants.ALL_STATES,
+			// 		uuid: '0'
+			// 	},
+			// 	...data
+			// ];
+			return data;
+		} catch (err) {
+			// handleRedirection(res.status, url.pathname, url.search);
+			return { status: res.status, error: err.message };
+		}
 	};
 
 	return {
 		rsetiData: await fetchRsetiDetails(),
 		stateData: await fetchStateList(),
-		coursesData: await fetchCourseListDetails()
+		coursesData: await fetchCourseListDetails(),
+		user: data?.user || ''
 	};
 }

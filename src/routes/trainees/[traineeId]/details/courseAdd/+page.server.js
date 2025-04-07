@@ -1,20 +1,25 @@
+import { BASE_URL } from '$lib/config';
+import { fail } from '@sveltejs/kit';
+import { getErrorMessage } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
+
 let method = '';
 
 async function saveCourseData({ request, fetch, cookies, params }) {
 	const authToken = cookies.get('authToken');
-    const traineeId = params?.traineeId;
-   
+	const traineeId = params?.traineeId;
+	const data = await request?.formData();
+	const formData = Object.fromEntries(data.entries());
+	let response;
 	try {
 		// Extract form data
-		const data = await request.formData();
-		const formData = Object.fromEntries(data.entries());
-		const body = formData.postData ? JSON.stringify(JSON.parse(formData.postData)) : null;;
-		method = data.get('method') || '';
-        const rsetiCourseUuid=data.get('uuid') || '';
+		const body = formData.postData ? JSON.stringify(JSON.parse(formData.postData)) : null;
 
-		let response;
+		method = data.get('method') || '';
+		const rsetiCourseUuid = data.get('uuid') || '';
+
 		if (method === 'POST') {
-			response = await fetch(`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/trainees/${rsetiCourseUuid}`, {
+			response = await fetch(`${BASE_URL}/apis/v1/trainees/${rsetiCourseUuid}`, {
 				method: 'POST',
 				body: body,
 				headers: {
@@ -23,18 +28,23 @@ async function saveCourseData({ request, fetch, cookies, params }) {
 				}
 			});
 
-			if (!response.ok || response.status != 201) {
-				if (response.status == 409)
-					return {
-						error: 'Failed to submit form, trainee already added to the course. ',
-						data: body
-					};
-				return { error: 'Failed to submit form. Please try again.', data: body };
+			if (!response.ok) {
+				let { errorMsg } = getErrorMessage({
+					status: response?.status,
+					action: userActions.ADD,
+					module: resourceNames.TRAINEE_COURSE
+				});
+
+				return fail(response.status, {
+					error: errorMsg,
+					success: false,
+					data: JSON.parse(formData.postData)
+				});
 			}
 		}
 
 		if (method === 'PUT') {
-			response = await fetch(`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/trainees/${rsetiCourseUuid}/${traineeId}`, {
+			response = await fetch(`${BASE_URL}/apis/v1/trainees/${rsetiCourseUuid}/${traineeId}`, {
 				method: 'PUT',
 				body: body,
 				headers: {
@@ -43,28 +53,34 @@ async function saveCourseData({ request, fetch, cookies, params }) {
 				}
 			});
 
-			// Check for a successful response
-			if (!response.ok || response.status != 200) {
-				if (response.status == 409)
-					return {
-						error: 'Failed to submit form, trainee already exists. Please try again.',
-						data: body
-					};
-				return { error: 'Failed to submit form. Please try again.', data: body };
+			if (!response.ok) {
+				let { errorMsg } = getErrorMessage({
+					status: response?.status,
+					action: userActions.EDIT,
+					module: resourceNames.TRAINEE_COURSE
+				});
+
+				return fail(response.status, {
+					error: errorMsg,
+					success: false,
+					data: JSON.parse(formData.postData)
+				});
 			}
 		}
 
-		let resultObject= await response.json()
+		let resultObject = await response.json();
 		// Return success status
 		return {
 			message: 'Form saved successfully',
-			resultObject:resultObject
+			resultObject: resultObject
 		};
 	} catch (error) {
 		console.error('Error in form action for Course:', error.message);
-		return {
-			error: `Error: ${error.message}`
-		};
+		return fail(response.status, {
+			error: error.message,
+			success: false,
+			data: JSON.parse(formData.postData)
+		});
 	}
 }
 

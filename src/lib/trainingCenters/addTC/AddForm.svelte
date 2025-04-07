@@ -1,6 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import Address from '$lib/components/Address.svelte';
 	import InputField from '$lib/components/InputField.svelte';
 	import BreadCrumbs from '$lib/components/BreadCrumbs.svelte';
@@ -15,7 +15,9 @@
 	import Button from '$lib/components/Button.svelte';
 	import { page } from '$app/stores';
 	import MultiStepProgressComponent from '$lib/components/MultiStepProgressComponent.svelte';
-
+	import { handleRedirection } from '$lib/utils/helper.js';
+	import {showLoadingSpinner} from '/src/routes/store.js'
+	import { userDetails } from '/src/routes/store.js';
 
 	let saved = false;
 	let validationErrors = {};
@@ -24,8 +26,11 @@
 	let isSubmitting = false;
 	let districtList = [];
 	let fullDistrictList = []; // to be used when translation of district need to be entered in Hindi as well
-	let steps=[{number:1, text:'Details'},{number:2, text:'Review'}]
-	let currentStep = 1
+	let steps = [
+		{ number: 1, text: 'Details' },
+		{ number: 2, text: 'Review' }
+	];
+	let currentStep = 1;
 
 	export let stateData = [];
 	export let route;
@@ -38,7 +43,7 @@
 		bankName: '',
 		stateId: 0,
 		extId: '',
-		rsetiId:'',
+		rsetiId: '',
 		email: '',
 		contactNo: '',
 		directorContactNo: '',
@@ -54,10 +59,20 @@
 		method: '',
 		translationIdEnglish: 0,
 		translationIdHindi: 0,
-		// districtName: '',
 		districtId: '',
 		districtName: ''
 	};
+
+	let stateUserRoleIds = [4, 5];
+	let rsetiUserRoleIds = [6, 7];
+
+	const url = $page.url;
+
+	$: if (isSubmitting === true){
+		showLoadingSpinner.set(true)
+	} else {
+		showLoadingSpinner.set(false)
+	}
 
 	onMount(() => {
 		if (route?.includes('edit')) {
@@ -66,6 +81,14 @@
 		} else {
 			method = 'POST';
 		}
+
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe();
 	});
 
 	function handleGoBack() {
@@ -74,7 +97,7 @@
 
 	async function handlePrevious() {
 		saved = false;
-		currentStep=1
+		currentStep = 1;
 		tcObject = tcObject;
 	}
 
@@ -175,7 +198,11 @@
 		validationErrors = {};
 
 		if (search == '?/review') {
-			currentStep=2
+			currentStep = 2;
+		}
+
+		if (search == '?/final') {
+			isSubmitting = true;
 		}
 
 		formData.set('method', method);
@@ -185,10 +212,12 @@
 
 		if (Object.keys(validationErrors)?.length > 0) {
 			saved = false;
+			isSubmitting = false;
 			cancel();
 			return;
 		}
 		if (!validateForm()) {
+			isSubmitting=false;
 			cancel();
 			return;
 		}
@@ -206,7 +235,8 @@
 
 			if (search == '?/final') {
 				isSubmitting = true;
-				if (!Object.keys(result?.data)?.includes('error')) {
+
+				if (result.type == 'success') {
 					if (method === 'POST') {
 						goto(`/trainingCenters`, { invalidateAll: true });
 						message.set(`Successfully added training center "${tcObject.nameEnglish}"! `);
@@ -215,7 +245,9 @@
 						goto(`/trainingCenters`, { invalidateAll: true });
 						message.set(`Successfully edited training center "${tcObject.nameEnglish}"!`);
 					}
-				} else {
+				}
+
+				if (result.type == 'failure') {
 					const errorMsg =
 						method === 'PUT'
 							? 'Failed to update training center. Please try again!'
@@ -223,47 +255,47 @@
 
 					try {
 						const { data } = result.data;
+
 						const parseData = JSON.parse(data.data);
 						tcObject.stateId = parseData.stateId;
 						tcObject.bankId = parseData.bankId;
 					} catch (err) {
-						console.log('failed to parse data');
+						console.log('failed to parse data', err);
 					}
 
 					creationError = result?.data?.error ? result?.data?.error : errorMsg;
+
+					if (result?.status === 401) {
+						handleRedirection(result.status, url.pathname, url.search);
+					} else {
+						//handle other errors
+					}
 					isSubmitting = false;
 				}
 			}
 		};
 	}
 
-	// let stateFilterOptionList = [
-	// 	// { title: String_Constants.ALL_STATES, uuid: 0 },
-	// 	...stateData
-	// 		.filter((state) => state.languageCode === 'en' && state.name && state.extId) // Filter by languageCode and valid name/extId
-	// 		.map((state) => ({
-	// 			title: state.name.trim(),
-	// 			uuid: state.extId
-	// 		}))
-	// ];
-
 	let stateFilterOptionList = [];
 
-	stateData.forEach((item) => {
-		if (item.languageCode === 'en' && item.name && item.extId) {
-			stateFilterOptionList.push({ title: item.name.trim(), uuid: item.extId });
-		}
-	});
+	!stateData.error &&
+		stateData?.forEach((item) => {
+			if (item.languageCode === 'en' && item.name && item.extId) {
+				stateFilterOptionList.push({ title: item.name.trim(), uuid: item.extId });
+			}
+		});
 
-	let bankDataList = [
-		// { title: String_Constants.ALL_BANKS, uuid: 0 },
-		...bankData
-			.filter((bank) => bank.name && bank.uuid) // Filter by languageCode and valid name/extId
-			.map((bank) => ({
-				title: bank.name,
-				uuid: bank.uuid
-			}))
-	];
+	let bankDataList = !bankData.error
+		? [
+				// { title: String_Constants.ALL_BANKS, uuid: 0 },
+				...bankData
+					?.filter((bank) => bank.name && bank.uuid)
+					?.map((bank) => ({
+						title: bank.name,
+						uuid: bank.uuid
+					}))
+			]
+		: [];
 
 	function handleDistrictSelection(event) {
 		tcObject.districtName = event.detail.selectedItemName;
@@ -292,19 +324,20 @@
 	async function popualateDistList(stateId) {
 		if (!tcObject.stateId) return;
 
-		stateData.forEach((state) => {
-			if (state.extId == stateId) {
-				if (state.languageCode === 'en' && state.districts?.length > 0) {
-					districtList = [...state.districts];
+		!stateData.error &&
+			stateData?.forEach((state) => {
+				if (state?.extId == stateId) {
+					if (state?.languageCode === 'en' && state?.districts?.length > 0) {
+						districtList = [...state.districts];
+					}
+					if (state?.languageCode === 'hi' && state?.districts?.length > 0) {
+						//the fullDistrictList will have both english and Hindi dist names.
+						// the user need to pick the English name, our prog will handle the Hindi part
+						fullDistrictList = [...districtList, ...state.districts];
+					}
 				}
-				if (state.languageCode === 'hi' && state.districts?.length > 0) {
-					//the fullDistrictList will have both english and Hindi dist names.
-					// the user need to pick the English name, our prog will handle the Hindi part
-					fullDistrictList = [...districtList, ...state.districts];
-				}
-			}
-		});
-		districtList = districtList.map((item, index) => {
+			});
+		districtList = districtList?.map((item, index) => {
 			return { ...item, uuid: index + 1 };
 		});
 	}
@@ -316,6 +349,25 @@
 		tcObject.districtName = '';
 		districtList = [];
 	}
+
+	// ---------------------------------- Role based functions --------------------------------
+	function roleBasedAcessSetting() {
+		if (stateUserRoleIds?.includes(Number($userDetails?.role))) {
+			tcObject.stateId = $userDetails?.stateId;
+			tcObject.stateName = !stateData.error
+				? stateData?.find(
+						(item) =>
+							Number(item?.extId) == Number($userDetails?.stateId) && item?.languageCode === 'en'
+					)?.name
+				: '';
+			popualateDistList(tcObject?.stateId);
+			tcObject = tcObject;
+		}
+	}
+
+	onDestroy(()=>{
+		showLoadingSpinner.set(false)
+	})
 </script>
 
 <div class="my-4 text-primary">
@@ -326,9 +378,7 @@
 	{/if}
 
 	<div class="w-full max-w-80 mx-auto">
-		<MultiStepProgressComponent 
-		{steps}
-		{currentStep}/>
+		<MultiStepProgressComponent {steps} {currentStep} />
 	</div>
 
 	<form method="post" action="?/review" use:enhance={handleEnhance} class="form">
@@ -396,6 +446,7 @@
 							bind:selectedItemId={tcObject.stateId}
 							on:handleDispatchComboBoxData={handleStateId}
 							on:handleDispatchFilterData={handleStateClearFilter}
+							disabled={stateUserRoleIds?.includes(Number($userDetails?.role))}
 						/>
 						{#if validationErrors.stateId}
 							<p class="text-red-600 text-xs mt-1">{validationErrors.stateId}</p>

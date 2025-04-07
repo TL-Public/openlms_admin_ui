@@ -8,8 +8,11 @@
 	import Button from '$lib/components/Button.svelte';
 	import { rolesList } from '$lib/data.js';
 	import SuccessMessage from '$lib/components/SuccessMessage.svelte';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { message } from '/src/routes/users/userStore.js';
+	import { userDetails } from '/src/routes/store.js';
+	import { checkActionPermission } from '$lib/utils/helper.js';
+	import { moduleNames, actionNames, roleIds, resourceNames } from '$lib/data.js';
 
 	export let data;
 
@@ -20,9 +23,40 @@
 	let deletionConfirmText = 'please delete this user';
 	let deleteTextConfirmation = false;
 	let viewModal = false;
+	let tabId;
+	let tabs = [];
+	let permissionsObject = {
+		allowAddition: false
+	};
+	let roleNames
+	let groupedUsers
+	let tableData=[]
+
+	let searchValue = '';
+	let tableLoading = false;
+	let actionConfigObject = [];
+	let userName = '';
+	let userRole = '';
+	let userDesignation = '';
+	let deleteTextInput = '';
+
+	// Function to normalize text (removes spaces and ignores case)
+	const normalizeText = (text) => text?.trim().toLowerCase().replace(/\s+/g, ' ');
+
+	//primary data is the most important data on the page. Error in loading this data means, the page itself will be shown as an error page
+	$: primaryDataError = usersList?.error ? usersList?.error : '';
+
+	// Function to check if input matches the required text
+	$: isTextValid(deleteTextInput);
+	function isTextValid() {
+		deleteTextConfirmation = normalizeText(deleteTextInput) === normalizeText(deletionConfirmText);
+	}
+
+	// ------------------------ User Grouping -------------------
 
 	// Function to group users by roleId and extract distinct role names
-	function groupUsersByRole(users, rolesList) {
+	async function groupUsersByRole(users, rolesList) {
+
 		const groupedUsers = {};
 		const roleMap = new Map();
 		if (users?.error) return { groupedUsers, roleNames: Array.from(roleMap.values()) };
@@ -33,7 +67,7 @@
 			const roleName = role ? role.name : 'Unknown Role';
 
 			// Add the role name to the roleNames Map
-			roleMap.set(user.roleId, { roleId: user.roleId, roleName, order: role.order });
+			roleMap.set(user.roleId, { roleId: user?.roleId, roleName, order: role?.order });
 
 			// Group users by roleId
 			if (!groupedUsers[user.roleId]) {
@@ -43,14 +77,7 @@
 		});
 		const roleNames = Array.from(roleMap.values());
 
-		return { groupedUsers, roleNames };
-	}
-
-	$: ({ groupedUsers, roleNames } = groupUsersByRole(usersList, rolesList));
-
-	let tabs = [];
-
-	$: if (roleNames?.length > 0) {
+		if (roleNames?.length > 0) {
 		tabs = roleNames
 			?.map((item) => {
 				return {
@@ -61,11 +88,17 @@
 				};
 			})
 			.sort((a, b) => a.order - b.order);
+		if (!tabId) {
+			tabId = tabs[0]?.id;
+			tableData=groupedUsers[tabId]
+		}
+	}
+	tableData = groupedUsers[tabId];
+	return { groupedUsers, roleNames };
 	}
 
-	let searchValue = '';
-	let tableLoading = false;
-	$: tableData = Object.values(groupedUsers)?.length > 0 ? Object.values(groupedUsers)[0] : [];
+	// -------------------------- Table Data and Related Functions-------------------------
+
 
 	let tableHeaderDisplay = [
 		{
@@ -83,59 +116,6 @@
 			name: 'Designation'
 		}
 	];
-
-	let actionConfigObejct = [
-		{
-			actionName: 'view',
-			actionIconName: 'visibility',
-			modal: false
-		},
-		{
-			actionName: 'edit',
-			actionIconName: 'edit',
-			modal: false
-		},
-		{
-			actionName: 'delete',
-			actionIconName: 'delete',
-			modal: true
-		}
-	];
-
-	let userName = '';
-	let userRole = '';
-	let userDesignation = '';
-	let deleteTextInput = '';
-
-	// Function to normalize text (removes spaces and ignores case)
-	const normalizeText = (text) => text?.trim().toLowerCase().replace(/\s+/g, ' ');
-
-	// Function to check if input matches the required text
-	$: isTextValid(deleteTextInput);
-	function isTextValid() {
-		deleteTextConfirmation = normalizeText(deleteTextInput) === normalizeText(deletionConfirmText);
-	}
-
-	function handleActiveTab(e) {
-		// --- Change the selected component to the componet of tab ---
-
-		const tabId = e.detail.id;
-		tableData = groupedUsers[tabId];
-	}
-
-	function handleSearchValue(e) {
-		// ---- passing the search tearm to datatable ----
-		searchValue = e.detail;
-	}
-
-	function handleAddUser() {
-		// ---- navigate to add user page ----
-		goto('/users/add');
-	}
-
-	function handleBulkUploadUsers() {
-		goto('/users/bulkUpload');
-	}
 
 	function handleTableActionClick(event) {
 		const { actionName, actionData } = event.detail;
@@ -157,6 +137,81 @@
 		}
 	}
 
+	function handleActiveTab(e) {
+		// --- Change the selected component to the componet of tab ---
+		tabId = e.detail.id;
+		tableData = groupedUsers[tabId] || [];
+	}
+
+	$: handleTableConfig(tabId);
+	function handleTableConfig() {
+		actionConfigObject = [];
+		// Generally user crud is given for all users below the logged in users hirarchy except for state user, for state user he wont be able to do crud on trainer
+
+		if (
+			(Number($userDetails?.role) === Number(roleIds?.STATE_STAFF) ||
+				Number($userDetails?.role) === Number(roleIds?.STATE_ADMIN)) &&
+			Number(tabId) === Number(roleIds?.TRAINER)
+		) {
+			if (checkActionPermission($userDetails?.role, moduleNames?.USERS, actionNames?.DETAILS)) {
+				let tempObj = {
+					actionName: 'view',
+					actionIconName: 'visibility',
+					modal: false
+				};
+				actionConfigObject.push(tempObj);
+			}
+		} else {
+			if (checkActionPermission($userDetails?.role, moduleNames?.USERS, actionNames?.DETAILS)) {
+				let tempObj = {
+					actionName: 'view',
+					actionIconName: 'visibility',
+					modal: false
+				};
+				actionConfigObject.push(tempObj);
+			}
+
+			if (checkActionPermission($userDetails?.role, moduleNames?.USERS, actionNames?.EDIT)) {
+				let tempObj = {
+					actionName: 'edit',
+					actionIconName: 'edit',
+					modal: false
+				};
+				actionConfigObject.push(tempObj);
+			}
+
+			if (checkActionPermission($userDetails?.role, moduleNames?.USERS, actionNames?.DELETE)) {
+				let tempObj = {
+					actionName: 'delete',
+					actionIconName: 'delete',
+					modal: true
+				};
+				actionConfigObject.push(tempObj);
+			}
+		}
+	}
+
+	// -------------------------- General Functions -------------------------------
+
+	function handleSearchValue(e) {
+		// ---- passing the search tearm to datatable ----
+		searchValue = e.detail;
+	}
+
+	function handleAddUser() {
+		// ---- navigate to add user page ----
+		goto('/users/add');
+	}
+
+	function handleBulkUploadUsers() {
+		goto('/users/bulkUpload');
+	}
+
+	function handleSuccesMessageClose(e) {
+		message.set('');
+	}
+
+	// ------------------------------------------- Deletion ----------------------------------
 	function handleCancel() {
 		deleteTextInput = '';
 		viewModal = false;
@@ -167,17 +222,35 @@
 		message.set('');
 
 		usersList = usersList.filter((item) => item.uuid !== userUuidForDeletion);
-
+		groupUsersByRole(usersList, rolesList)
+	 
 		message.set(`Successfully deleted the user - "${userName}".`);
 		viewModal = false;
 	}
 
-	function handleSuccesMessageClose(e) {
-		message.set('');
+	// ---------------------------------- Role based functions --------------------------------
+	function roleBasedAcessSetting() {
+		if (!$userDetails?.role) return;
+
+		if (checkActionPermission($userDetails?.role, moduleNames.USERS, actionNames?.ADD)) {
+			permissionsObject.allowAddition = true;
+		} else {
+			permissionsObject.allowAddition = false;
+		}
 	}
 
 	onDestroy(() => {
 		message.set('');
+	});
+	onMount(async () => {
+		({ groupedUsers, roleNames } = await groupUsersByRole(usersList, rolesList));
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe(); // Cleanup subscription
 	});
 </script>
 
@@ -195,7 +268,7 @@
 	</div>
 </div>
 <div class="mb-4">
-	<Tabs {tabs} on:handleActiveTab={handleActiveTab} />
+	<Tabs {tabs} on:handleActiveTab={handleActiveTab} activeTab={tabs?.find(tab => Number(tab?.id) === Number(tabId))}/>
 </div>
 
 <div class="mb-5 flex gap-2 md:flex-nowrap flex-wrap">
@@ -204,10 +277,12 @@
 		placeholder={'Search by name'}
 		showSearchButton={false}
 	/>
-	<div class="flex gap-2 ml-auto">
-		<Button btnType="secondary" on:click={handleBulkUploadUsers}>Bulk Upload</Button>
-		<Button on:click={handleAddUser}>+ User</Button>
-	</div>
+	{#if permissionsObject?.allowAddition}
+		<div class="flex gap-2 ml-auto">
+			<Button btnType="secondary" on:click={handleBulkUploadUsers}>Bulk Upload</Button>
+			<Button on:click={handleAddUser}>+ User</Button>
+		</div>
+	{/if}
 </div>
 
 <!-- <svelte:component  this={selectedComponent} /> -->
@@ -215,47 +290,17 @@
 	{tableData}
 	bind:searchValue
 	loading={tableLoading}
+	error={primaryDataError}
 	{tableHeaderDisplay}
-	actionConfigObject={actionConfigObejct}
+	{actionConfigObject}
 	on:tableActionClick={handleTableActionClick}
 />
 
-<!-- {#if viewDeleteModal}
-	<DeletionModalViaAPI
-		id={'pass_user_uuid'}
-		name={'pass_user_name'}
-		code={'pass_code'}
-		heading={'Delete User'}
-		para={'Are you sure you want to delete the user? This action cannot be undone.'}
-		endPoint={'/apis/user/delete/'}
-		on:handleCancelDeletion={togglDeleteModal}
-		on:handleDeletion={handleUserDeletion}
-	>
-		<hr />
-		<div class=" flex flex-col gap-2 p-6">
-			<div>
-				<p class="text-sm text-darkGray capitalize">User : {userName}</p>
-				<p class="text-sm text-darkGray">Role : {userRole}</p>
-				<p class="text-sm text-darkGray">Designation : {userDesignation}</p>
-			</div>
-		</div>
-		<hr class="mb-2" />
-		<div class="">
-			<InputField
-				label={"Type 'Please delete this user' to confirm"}
-				placeholder={" Type 'Please delete this user'"}
-				name={'deletion'}
-				labelFontWeight={'font-normal'}
-				bind:value={deleteTextInput}
-				required
-			/>
-		</div>
-	</DeletionModalViaAPI>
-{/if} -->
 
 {#if viewModal && tableActionName === 'delete'}
 	<DeletionModalViaAPI
 		name={userName}
+		module={resourceNames.USERS}
 		heading={`About to delete the user - ${userName}`}
 		para={'Are you sure you want to delete the user? This action cannot be undone.'}
 		endPoint={`/apis/users/${userUuidForDeletion}`}

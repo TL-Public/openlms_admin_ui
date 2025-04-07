@@ -8,12 +8,13 @@
 	import RadioButton from '$lib/components/RadioButton.svelte';
 	import InputField from '$lib/components/InputField.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { combineErrorMessages } from '$lib/utils/helper.js';
+	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
 
 	export let data;
 
-	let { FAQData,faqCategoryListData } = data;
+	let { FAQData, faqCategoryListData } = data;
 
-	let error;
 	let tableData = [];
 	let viewModal = false;
 	let searchValue = '';
@@ -26,6 +27,8 @@
 	let deletionConfirmText = 'please delete this faq';
 	let deleteTextConfirmation = false;
 
+	$: secondaryErrors = combineErrorMessages(faqCategoryListData.error);
+
 	// Function to normalize text (removes spaces and ignores case)
 	const normalizeText = (text) => text?.trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -36,52 +39,48 @@
 	}
 
 	$: createTableData(FAQData, selectedLanguage);
-function createTableData() {
-    let FAQsCopy = [];
-    error = '';
-    tableData = [];
+	function createTableData() {
+		let FAQsCopy = [];
 
-    if (FAQData?.error || !FAQData || FAQData.length === 0) {
-        error = 'No FAQs available';
-        return;
-    }
+		tableData = [];
 
-    FAQsCopy = FAQData;
+		if (FAQData?.error || !FAQData || FAQData.length === 0) {
+			return;
+		}
 
-    tableData = FAQsCopy
-        .map((FAQ) => {
-            const translation = FAQ?.translations?.find(
-                (t) => t?.languageCode?.toLowerCase().trim() === selectedLanguage?.toLowerCase().trim()
-            );
+		FAQsCopy = FAQData;
 
-            if (!translation) {
-                return null; 
-            }
+		tableData = FAQsCopy.map((FAQ) => {
+			const translation = FAQ?.translations?.find(
+				(t) => t?.languageCode?.toLowerCase()?.trim() === selectedLanguage?.toLowerCase()?.trim()
+			);
 
-            let categoryName = '';
-            if (FAQ?.categoryId) {
-                const category = faqCategoryListData.find(
-                    (cat) =>
-                        cat.extId === FAQ?.categoryId &&
-                        cat.languageCode?.toLowerCase().trim() === selectedLanguage?.toLowerCase().trim()
-                );
-                categoryName = category?.category || '';
-            }
+			if (!translation) {
+				return null;
+			}
 
-            return {
-                uuid: FAQ?.uuid,
-                answer: translation?.answer,
-                question: translation?.question,
-                categoryId: FAQ?.categoryId,
-                categoryName: categoryName
-            };
-        })
-        .filter(Boolean); // Remove null values
+			let categoryName = '';
 
-    return tableData;
-}
+			if (FAQ?.categoryId && !faqCategoryListData.error) {
+				const category = faqCategoryListData?.find(
+					(cat) =>
+						cat?.extId === FAQ?.categoryId &&
+						cat?.languageCode?.toLowerCase().trim() === selectedLanguage?.toLowerCase().trim()
+				);
+				categoryName = category?.category || '';
+			}
 
+			return {
+				uuid: FAQ?.uuid,
+				answer: translation?.answer,
+				question: translation?.question,
+				categoryId: FAQ?.categoryId,
+				categoryName: categoryName
+			};
+		}).filter(Boolean); // Remove null values
 
+		return tableData;
+	}
 
 	function sendSearchValueToDatatable(e) {
 		searchValue = e.detail;
@@ -109,7 +108,6 @@ function createTableData() {
 	function handleLanguageSelectionFromRadioButton(e) {
 		selectedLanguage = e.detail;
 	}
-
 
 	// --------------------- Listing Table ----------------------
 	// this object needs to be in accordance with the datatable sortAccordingTo object
@@ -158,25 +156,26 @@ function createTableData() {
 	];
 
 	function handleTableAction(e) {
-		const actionName = e.detail.actionName;
-		const actionData = e.detail.actionData;
-		message.set('');
-		viewModal = e.detail.viewModal;
-		tableActionName = e.detail.actionName;
-		question = e.detail.actionData.question;
-		answer = e.detail.actionData.answer;
-		faqUuid = e.detail.actionData.uuid;
+		const clickedItem = e.detail;
+		const actionName = clickedItem?.actionName;
 
-		if(actionName==='view'){
-			goto(`FAQs/${faqUuid}/details`)
+		message.set('');
+		viewModal = clickedItem?.viewModal;
+		tableActionName = clickedItem?.actionName;
+		question = clickedItem?.actionData?.question;
+		answer = clickedItem?.actionData?.answer;
+		faqUuid = clickedItem?.actionData?.uuid;
+
+		if (actionName === 'view') {
+			goto(`FAQs/${faqUuid}/details`);
 		}
 
-		if(actionName==='edit'){
-			goto(`FAQs/${faqUuid}/details/edit`)
+		if (actionName === 'edit') {
+			goto(`FAQs/${faqUuid}/details/edit`);
 		}
 	}
 
-	function handleGoToFaq(){
+	function handleGoToFaq() {
 		goto('/FAQs/add');
 	}
 	function handleGoToBulkUpload() {
@@ -186,13 +185,15 @@ function createTableData() {
 
 <div class="mb-2">
 	{#if $message}
-	<SuccessMessage
-		successMessage={$message}
-		on:handleSuccessMessageClose={handleSuccesMessageClose}
-	/>
-{/if}
+		<SuccessMessage
+			successMessage={$message}
+			on:handleSuccessMessageClose={handleSuccesMessageClose}
+		/>
+	{/if}
+	{#if secondaryErrors}
+		<SubmissionErrorMessage errorMessage={secondaryErrors} />
+	{/if}
 </div>
-
 
 <div class="flex justify-between items-start mb-8 gap-4 flex-nowrap">
 	<div>
@@ -218,24 +219,19 @@ function createTableData() {
 		/>
 		<div class="flex gap-2 ml-auto">
 			<Button btnType="secondary" on:click={handleGoToBulkUpload}>Bulk Upload</Button>
-			<Button on:click={handleGoToFaq}>
-				 + New FAQ
-			</Button>
+			<Button on:click={handleGoToFaq}>+ New FAQ</Button>
 		</div>
-
-
-
-
 	</div>
-	<ListingTable 
-	{searchValue} 
-	{tableData} 
-	on:tableActionClick={handleTableAction} 
-	{error} 
-	{tableHeaderDisplay}
-	{actionConfigObject}
-	rowHeight={'compact'}
-	bind:sortAccordingTo />
+	<ListingTable
+		{searchValue}
+		{tableData}
+		on:tableActionClick={handleTableAction}
+		error={FAQData?.error}
+		{tableHeaderDisplay}
+		{actionConfigObject}
+		rowHeight={'compact'}
+		bind:sortAccordingTo
+	/>
 </div>
 
 <div>
@@ -251,7 +247,9 @@ function createTableData() {
 			on:handleDeletion={handleFAQDeletion}
 		>
 			<hr />
-			<div class="flex flex-col gap-2 p-6 bg-offwhite rounded-lg mb-4 border border-gray-50 text-darkGray">
+			<div
+				class="flex flex-col gap-2 p-6 bg-offwhite rounded-lg mb-4 border border-gray-50 text-darkGray"
+			>
 				<div>
 					<!-- <p class="label">Question : {question}</p> -->
 					<p class="text-sm capitalize mb-1">
@@ -260,8 +258,7 @@ function createTableData() {
 					</p>
 
 					<!-- <p class="text-sm text-darkGray">Answer : {answer}</p> -->
-					<p class="text-sm "><span class="font-medium">Answer :</span>{answer}</p>
-
+					<p class="text-sm"><span class="font-medium">Answer :</span>{answer}</p>
 				</div>
 			</div>
 			<hr class="mb-2" />

@@ -1,14 +1,16 @@
 <script>
 	// NOTES for integrating video player
 	// Before playing a video, an auth token and video id have to be generated and passed to the player
-	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
 	import { browser } from '$app/environment';
-	import { error } from '@sveltejs/kit';
+
 
 	// videoID can be passed as a prop
 	export let videoId;
 	// token can also be passed as a  prop
 	export let token;
+	export let muted = false;
+	export let autoplay = false;
 	export let acceptToken = false;
 
 	const dispatch = createEventDispatcher();
@@ -16,6 +18,9 @@
 	let player;
 	let mounted = false;
 	let scriptLoaded = false;
+	let divIdPlayer = 'player_' + parseInt(Math.random() * 109999);
+	let divIdContainer = 'container_' + parseInt(Math.random() * 109999);
+	let videoFailed = false;
 
 	// inform when mounted
 	onMount(() => {
@@ -36,7 +41,7 @@
 
 	// generate token for the video
 	async function generateToken() {
-		let payload = { email: 'sinu.jamal@tensorlogic.ai', displayName: 'Sinu Jamal' };
+		let payload = { email: 'public@reaplearn.in', displayName: 'public' };
 
 		//to stop progress api calls of current video when a new video is played.
 		if (player) player?.blockViewProgressCalls();
@@ -58,6 +63,7 @@
 	function loadScript(src) {
 		return new Promise((resolve, reject) => {
 			const existingScript = document?.querySelector(`script[src="${src}"]`);
+	
 
 			if (existingScript) {
 				resolve();
@@ -84,6 +90,7 @@
 			if (!videoId) return;
 			await loadScript('//assets.kpoint.com/orca/media/embed/player-silk.js');
 			scriptLoaded = true;
+
 			if (!acceptToken) {
 				token = await generateToken();
 			}
@@ -104,23 +111,33 @@
 		}
 	}
 
-	function loadPlayer() {
+	async function loadPlayer() {
 		try {
-			const outerContainer = document.getElementById('player-outer-container');
+			videoFailed = false;
+			const outerContainer = document.getElementById(divIdContainer);
 			if (outerContainer) {
-				const targetDiv = outerContainer.querySelector('#player-container');
+				const targetDiv = outerContainer.querySelector(`#${divIdPlayer}`);
 				if (targetDiv) {
 					targetDiv.remove();
+					await tick();
 				}
+				divIdPlayer = 'player_' + parseInt(Math.random() * 109999);
+
 				const newDiv = document.createElement('div');
-				newDiv.setAttribute('id', 'player-container');
+				newDiv.setAttribute('id', divIdPlayer);
 				outerContainer.prepend(newDiv);
 			}
-			// throw error(404, "no found")
-			player = kPoint.Player(document.getElementById('player-container'), {
+
+			player = kPoint.Player(document.getElementById(divIdPlayer), {
 				kvideoId: videoId,
+				// videoHost: 'nabard.zencite.in',
 				videoHost: 'test-nabard.kpoint.com',
-				params: { xt: token }
+				params: { xt: token, muted, autoplay }
+			});
+			player.addEventListener('error', (error) => {
+				if (error.type === 'KAPSULE_ACCESS') {
+					videoFailed = true;
+				}
 			});
 		} catch (err) {
 			console.log('error is', err);
@@ -128,15 +145,21 @@
 	}
 </script>
 
-<div id="player-outer-container" class="relative" style="width:100%; aspect-ratio: 16/9.5;">
+<div id={divIdContainer} class="relative" style="width:100%; aspect-ratio: 16/9.5;">
 	{#if !videoLoaded}
-		<div class="absolute top-0 left-0 w-full bg-gray-50 animate-pulse z-40 h-[95%]"></div>
+		<div class="absolute top-0 left-0 w-full bg-gray-50 animate-pulse z-5 h-[95%]"></div>
 		<div
-			class="w-20 h-20 border-8 border-gray-30 border-t-orange-100 z-50 absolute top-1/2 left-1/2 rounded-full -translate-x-1/2 -translate-y-1/2 round-loader origin-[0%_0%]"
+			class="w-20 h-20 border-8 border-gray-30 border-t-orange-100 z-5 absolute top-1/2 left-1/2 rounded-full -translate-x-1/2 -translate-y-1/2 round-loader origin-[0%_0%]"
 		></div>
+	{:else if videoFailed}
+		<div
+			class="absolute top-0 left-0 w-full bg-gray-50 z-5 h-[95%] flex items-center justify-center text-primary font-medium"
+		>
+			'Sorry! Failed to load video'
+		</div>
 	{/if}
 
-	<div id="player-container" style="width:100%; "></div>
+	<div id={divIdPlayer} style="width:100%; "></div>
 </div>
 
 <style>

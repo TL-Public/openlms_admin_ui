@@ -1,26 +1,32 @@
-import { json } from "@sveltejs/kit";
+import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
 
-// API to get list of all states 
-export async function GET() {
+export async function GET({ cookies }) {
+	const authToken = cookies.get('authToken');
+
+	let res;
 	try {
-		const res = await fetch(
-			`http://reap-dev-admin-service.ap-south-1.elasticbeanstalk.com/reap/api/v1/nars`
-		);
-		if(!res.ok){
-            throw new Error('Failed to fetch data')
-        }
+		res = await fetch(`${BASE_URL}/apis/v1/nars`, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`
+			}
+		});
+		if (!res.ok) {
+			throw new Error('Failed to fetch data');
+		}
 
-        if (res.status != 200) {
+		if (res.status != 200) {
 			throw new Error('Failed to fetch data');
 		}
 		const data = await res.json();
-		if (data?.length ===0 || Object.keys(data)?.length===0) {
+		if (data?.length === 0 || Object.keys(data)?.length === 0) {
 			throw new Error('Data not found');
 		}
-		
-		return json(data)
+
+		return json(data);
 	} catch (error) {
-		
-		return json({ error: error.message })
+		return json({ error: error.message }, { status: res.status });
 	}
 }

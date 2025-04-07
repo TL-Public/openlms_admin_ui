@@ -5,12 +5,15 @@
 	import TextDescriptionField from '$lib/components/TextDescriptionField.svelte';
 	import ReviewForm from '$lib/components/ReviewForm.svelte';
 	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, onDestroy } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import { message } from '/src/routes/trainees/traineeStore.js';
 	import { goto } from '$app/navigation';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import MultiStepProgressComponent from '$lib/components/MultiStepProgressComponent.svelte';
+	import { handleRedirection } from '$lib/utils/helper.js';
+	import { page } from '$app/stores';
+	import {showLoadingSpinner} from '/src/routes/store.js'
 
 	export let route;
 	export let formObject = {
@@ -39,6 +42,7 @@
 
 	const maxFileSizeInIntegers = 1;
 	const maxFileSize = 1 * 1024 * 1024;
+	const url = $page.url;
 	const today = new Date().toISOString().split('T')[0];
 	let saved = false;
 	let validationErrors = {};
@@ -74,6 +78,13 @@
 			formObject = formObject;
 		}
 	}
+
+	$: if (isSubmitting === true){
+		showLoadingSpinner.set(true)
+	} else {
+		showLoadingSpinner.set(false)
+	}
+
 
 	// ------------- Functions to check availability of username and email ---------------
 	async function checkAvailability(type, value) {
@@ -170,6 +181,7 @@
 		await checkAvailability('username', formObject.username);
 		if (usernameError || emailError) {
 			saved = false;
+			isSubmitting=false
 			cancel();
 			return;
 		}
@@ -197,15 +209,13 @@
 			await result;
 			// `result` is an `ActionResult` object
 			if (search == '?/final') {
-			isSubmitting = true;
-				if (!Object.keys(result?.data)?.includes('error')) {
+				isSubmitting = true;
+				if (result.type == 'success') {
 					if (method === 'POST') {
 						const dataObject = JSON.stringify({
 							uuid: result?.data?.data?.traineeProfileDto?.uuid
 						});
-						// goto(`/trainees/${result?.data?.data?.traineeProfileDto?.uuid}/details`, {
-						// 	invalidateAll: true
-						// });
+
 						goto(`/trainees`, {
 							invalidateAll: true
 						});
@@ -215,24 +225,24 @@
 						const dataObject = JSON.stringify({
 							uuid: result?.data?.data?.traineeProfileDto?.uuid
 						});
-						// goto(`/trainees/${result?.data?.data?.traineeProfileDto?.uuid}/details`, {
-						// 	invalidateAll: true
-						// });
+
 						goto(`/trainees`, {
 							invalidateAll: true
 						});
 						message.set(`Successfully edited trainee - "${formObject?.candidateName}".`);
 					}
-				} else {
-					// repopulating the dropdown placeholder
+				}
+
+				if (result.type == 'failure') {
 					formObject = formObject;
 					creationError = true;
 					isSubmitting = false;
+
 					if (result?.data?.error) {
-						if (result?.data?.status === 409) {
-							errorMessage = result?.data?.error + ` Trainee already exists.`;
-						} else {
-							errorMessage = result?.data?.error;
+						errorMessage = result?.data?.error;
+						// all errors except 401 are handled in page.server.js and shown as message
+						if (result?.status === 401) {
+							handleRedirection(result.status, url.pathname, url.search);
 						}
 					}
 				}
@@ -355,6 +365,10 @@
 		currentStep = 1;
 		formObject = formObject;
 	}
+
+	onDestroy(()=>{
+		showLoadingSpinner.set(false)
+	})
 </script>
 
 <div class="text-darkGray">

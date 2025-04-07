@@ -1,5 +1,5 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onDestroy } from 'svelte';
 	import { languageMap } from '/src/config/constants.js';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import VideoPod from '$lib/components/VideoPod.svelte';
@@ -7,6 +7,10 @@
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import LanguageSelectionButtons from '$lib/components/LanguageSelectionButtons.svelte';
 	import FilterComponent from '$lib/components/FilterComponent.svelte';
+	import ToastMessage from '$lib/components/ToastMessage.svelte';
+	import { message } from '/src/routes/videos/videoStore.js';
+	import { onMount } from 'svelte';
+	import VideoEdit from '$lib/courses/courseDetails/VideoEdit.svelte';
 
 	export let params;
 	export let showSearchBar = true;
@@ -18,13 +22,15 @@
 	export let showDeleteIcon = true;
 	export let dataToSend = '';
 	export let filterOptions;
+	export let totalVideos;
+	export let languageCounts = []; 
 
 	let dispatch = createEventDispatcher();
 	let filters = {};
 	let videosToShow = [];
 	let languageAvailableForVideos = [];
 	let dummyVideoPodDetails = new Array(4);
-	let selectedLanguage = 'en';
+	let selectedLanguage='en'
 	let searchValue = '';
 
 	let currentPage = 0;
@@ -36,17 +42,31 @@
 	let isSearching = false;
 	let isFiltering = false;
 	let videosCopy = [];
+	
+	let currentLanguageTotal = 0;
+	let showEditModal=false
+	let videoToEdit;
+
 
 	videosToShow = videos;
 
 	$: populateLanguageArray(videos);
-	$: handleLangugaeSetting(selectedLanguage, videos, videosCopy);
+	$: handleLangugaeSetting(videos);
 	$: handleSearchAndFilterCombined(searchValue, filters);
+	$: updateCurrentLanguageCount(selectedLanguage, languageCounts);
+
+	// Function to update the current language count
+	function updateCurrentLanguageCount(lang, counts) {
+		if (!counts || counts.length === 0) return;
+		
+		const langData = counts.find(item => item.languageCode === lang);
+		currentLanguageTotal = langData ? langData.count : 0;
+	}
 
 	// -------------------------------- Language Related Function ---------------------------------------
 
 	// For populating language array
-	function populateLanguageArray() {
+	async function populateLanguageArray() {
 		let filteredVideos = [];
 		if (isSearching || isFiltering) {
 			filteredVideos = videosCopy;
@@ -78,11 +98,37 @@
 					languageAvailableForVideos = languageAvailableForVideos;
 				}
 			});
+
+			// Define the desired language order, ensuring 'en' is first
+			const languageOrder = ['en', 'hi', 'ta']; 
+
+			// Sort the languages based on predefined order
+			languageAvailableForVideos.sort((a, b) => {
+				let indexA = languageOrder.indexOf(a.languageCode);
+				let indexB = languageOrder.indexOf(b.languageCode);
+
+				// If not found in languageOrder, push them to the end
+				indexA = indexA === -1 ? languageOrder.length : indexA;
+				indexB = indexB === -1 ? languageOrder.length : indexB;
+
+				return indexA - indexB;
+			});
+
+			// Preserve selectedLanguage if it exists in the updated list, otherwise choose a fallback
+			if (
+				!selectedLanguage ||
+				!languageAvailableForVideos.some((lang) => lang.languageCode === selectedLanguage)
+			) {
+				const englishLanguage = languageAvailableForVideos.find(
+					(lang) => lang.languageCode === 'en'
+				);
+				selectedLanguage = englishLanguage ? 'en' : languageAvailableForVideos[0]?.languageCode;
+			}
 		}
 	}
 
 	// Function to show videos based on selected language
-	function handleLangugaeSetting() {
+	async function handleLangugaeSetting() {
 		let localVideosCopy = [];
 		errorInVideos = null;
 		if (isSearching || isFiltering) {
@@ -132,9 +178,9 @@
 		}
 	}
 
-	function handleSelectedLanguage(e) {
+	async function handleSelectedLanguage(e) {
 		selectedLanguage = e.detail.languageCode;
-		handleLangugaeSetting();
+		await handleLangugaeSetting();
 	}
 
 	// // ------------------------------- Functions related to filter -----------------
@@ -151,7 +197,8 @@
 			allVideosLoaded = false;
 			errorInVideos = null;
 			dispatch('handleShowMoreButton', false);
-			populateLanguageArray();
+			await populateLanguageArray();
+			await handleLangugaeSetting()
 			return;
 		}
 
@@ -242,7 +289,8 @@
 			// Update state variables
 			videosCopy = fetchedVideos.length > 0 ? fetchedVideos : [];
 			videosToShow = videosCopy;
-			populateLanguageArray();
+			await populateLanguageArray();
+			await handleLangugaeSetting();
 
 			if (localPage >= totalPages) {
 				allVideosLoaded = true;
@@ -253,7 +301,8 @@
 			if (fetchedVideos.length > 0) {
 				videosCopy = fetchedVideos;
 				videosToShow = fetchedVideos;
-				populateLanguageArray();
+				await populateLanguageArray();
+				await handleLangugaeSetting();
 			} else {
 				errorInVideos = `Failed to fetch videos`;
 			}
@@ -270,9 +319,70 @@
 		await fetchVideos({ searchValue, filters, resetPagination: false });
 	}
 
-	function handleDeletion() {
-		// write logic here
+	// ----------------------------- Video Deletion ----------------------------------
+
+	async function handleDeletion(e) {
+		message.set('');
+		let videoUuid = e.detail;
+		const videoToDelete = videosToShow?.find((video) => video.uuid === videoUuid);
+		let filteredVideos = videosToShow?.filter((video) => {
+			return video?.uuid !== e.detail;
+		});
+		message.set(`Successully deleted the video - "${videoToDelete?.name}".`);
+		videosToShow = filteredVideos;
+		videos = videos?.filter((video) => {
+			return video?.uuid !== e.detail;
+		});
+		videosCopy = videosCopy?.filter((video) => {
+			return video?.uuid !== e.detail;
+		});
+		
+		// Update language counts when a video is deleted
+		if (videoToDelete?.languageCode && languageCounts.length > 0) {
+			const langIndex = languageCounts?.findIndex(l => l.languageCode === videoToDelete.languageCode);
+			if (langIndex !== -1 && languageCounts[langIndex].count > 0) {
+				languageCounts[langIndex].count--;
+				languageCounts = [...languageCounts]; 
+				
+				// Update total videos count
+				if (totalVideos > 0) {
+					totalVideos--;
+				}
+			}
+		}
+		
+		await populateLanguageArray();
+		selectedLanguage = videoToDelete?.languageCode;
+		await handleLangugaeSetting();
 	}
+
+	function handleSuccesMessageClose(e) {
+		message.set('');
+	}
+
+	// --------------------- Edit Video----------------------------------
+
+		function handleEditModal(e){
+		showEditModal = true
+		videoToEdit = e.detail
+	}
+
+	function handleEditVideo(e){
+
+		message.set('');
+		let index = videosToShow.findIndex(v =>v.uuid ===e.detail.result?.uuid)
+		videosToShow[index]=e.detail.result
+		videos[index]=e.detail.result
+		videosCopy[index]=e.detail.result
+		message.set(`Successfully edited the video - "${videoToEdit.name}".`);
+		videoToEdit={}
+	}
+
+	function handleCancelEditSubmission(e){
+		showEditModal = false
+		videoToEdit = {}
+	}
+
 
 	// ------------------ Global Filter Functions ---------------------
 	async function handleVideoFilter(event) {
@@ -288,9 +398,48 @@
 		//  loading = false;
 		// }
 	}
+
+	onMount(async () => {
+		await populateLanguageArray();
+		await handleLangugaeSetting();
+	});
+
+	onDestroy(() => {
+		message.set('');
+	});
+	
 </script>
 
 <div>
+	{#if $message}
+		<div class="mb-2">
+			<ToastMessage
+				message={$message}
+				successMessage={true}
+				viewModal={true}
+				on:handleToastClose={handleSuccesMessageClose}
+			/>
+		</div>
+	{/if}
+
+	<div class="flex flex-wrap items-center text-sm text-darkGray mb-4 bg-white p-2 rounded-md border border-gray-50 shadow-sm px-4 ">
+		<span class="font-medium">Total: {totalVideos || 'NA'} {totalVideos === 1 ? 'video' : 'videos'}</span>
+		
+		{#if languageCounts && languageCounts.length > 0}
+		  <span class="mx-4 my-1">|</span>
+		  {#each languageCounts as langCount, i}
+			<span>
+			  {languageMap[langCount.languageCode] || langCount.languageCode}: {langCount.count}
+			</span>
+			{#if i < languageCounts.length - 1}
+			  <span class="mx-4 my-1">|</span>
+			{/if}
+			
+		  {/each}
+		{/if}
+	  </div>
+
+
 	<div class="mb-4 grid sm:grid-cols-2 gap-4">
 		{#if showSearchBar}
 			<SearchBar
@@ -299,7 +448,7 @@
 				showSearchButton={false}
 			/>
 		{/if}
-		<div class=" flex justify-end items-end">
+		<div class="flex justify-end items-end">
 			{#if showModuleFilter && Number(Object.keys(filterOptions)?.length) > 0}
 				<FilterComponent on:filterApplied={handleFilterApplied} {filterOptions}>
 					<span slot="btnContent" class="flex gap-2">
@@ -336,6 +485,7 @@
 			{languageAvailableForVideos}
 			on:handleSelectedLanguage={handleSelectedLanguage}
 			{selectedLanguage}
+			{languageCounts}
 		/>
 	{/if}
 
@@ -349,7 +499,7 @@
 
 	{#if !loadingInVideos}
 		{#if videosToShow?.length > 0 && errorInVideos == null}
-			<div class="grid sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+			<div class="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
 				{#each videosToShow as video, index (index)}
 					<div class="max-w-[800px]">
 						<VideoPod
@@ -359,9 +509,18 @@
 							{showDeleteIcon}
 							courseCodeData={dataToSend}
 							on:handleDeletion={handleDeletion}
+							on:handleEditModal={handleEditModal}
 						/>
 					</div>
 				{/each}
+			</div>
+
+			<!-- Enhanced summary line with language-specific counts -->
+			<div class="text-sm text-darkGray mb-8 flex justify-between items-center border-t pt-2">
+				<span>
+					Showing {videosToShow?.length} of {(currentLanguageTotal>0)?currentLanguageTotal : 'NA'} 
+					{languageMap[selectedLanguage] || selectedLanguage} videos
+				</span>
 			</div>
 		{:else}
 			<ErrorMessage error={errorInVideos} />
@@ -379,8 +538,17 @@
 {#if loadRemainingVideos && remainingVideosCount > 0}
 	<p class="text-sm text-center mb-8">
 		{remainingVideosCount} videos couldn't be loaded.
-		<a class=" text-sm text-blue-500 rounded underline" on:click={fetchRemainingVideos}>
+		<a class="text-sm text-blue-500 rounded underline" on:click={fetchRemainingVideos}>
 			Click here
-		</a>to load remaining videos.
+		</a> to load remaining videos.
 	</p>
 {/if}
+
+{#if showEditModal}
+	<VideoEdit
+		video={videoToEdit}
+		on:handleEditVideo={handleEditVideo}
+		on:handleCancelSubmission={handleCancelEditSubmission}
+	/>
+{/if}
+

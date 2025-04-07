@@ -1,36 +1,63 @@
 import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
+
+export async function GET({ params, cookies }) {
+	const id = params.rsetiUuid;
+
+	const authToken = cookies.get('authToken');
+	let res;
+	try {
+		const options = {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`
+			}
+		};
+		res = await fetch(`${BASE_URL}/apis/v1/rsetis/${id}`, options);
+
+		if (!res?.ok) {
+			return json({ status: res.status, error: 'Failed to fetch data' }, { status: res.status });
+		}
+
+		if (res?.status === 200) {
+			const data = await res.json();
+			return json(data, { status: res.status });
+		}
+	} catch (error) {
+		return json({ error: error.message }, { status: 500 });
+	}
+}
 
 export async function PUT({ params, request, cookies }) {
 	const id = params.rsetiUuid;
-	console.log('id', id)
+
 	const authToken = cookies.get('authToken');
 
 	try {
 		const req = await request.json();
 
 		const parsedData = JSON.parse(req.data);
-		console.log('parsed data',JSON.stringify(parsedData))
 
-		const res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/rsetis/${id}`,
-			{
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify(parsedData)
-			}
-		);
-console.log('res', res)
-		if (!res.ok) {
-			throw new Error('Failed to add edit rseti data');
+		const res = await fetch(`${BASE_URL}/apis/v1/rsetis/${id}`, {
+			method: 'PUT',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`
+			},
+			body: JSON.stringify(parsedData)
+		});
+
+		if (!res?.ok) {
+			return json({ status: res.status, error: 'Failed to fetch data' }, { status: res.status });
 		}
-		const responseData = await res.json();
 
-		return json(responseData);
+		if (res?.status === 200) {
+			const data = await res.json();
+			return json(data);
+		}
 	} catch (error) {
-		console.log('Failed to edit rseti data ', error.message);
+		return json({ error: error.message }, { status: 500 });
 	}
 }
 
@@ -38,22 +65,22 @@ export async function DELETE({ params, cookies }) {
 	const id = params.rsetiUuid;
 	const authToken = cookies.get('authToken');
 	try {
-		const res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/rsetis/${id}`,
-			{
-				method: 'DELETE',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				}
+		const res = await fetch(`${BASE_URL}/apis/v1/rsetis/${id}`, {
+			method: 'DELETE',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`
 			}
-		);
+		});
 		if (!res.ok) {
-			throw new Error('Failed to delete rseti data');
+			return json({ error: 'Failed to delete the course.' }, { status: res.status });
 		}
-		// const responseData = await res.json();
-		return res;
+
+		// Check for 204 No Content
+		if (res?.status === 204) {
+			return new Response(null, { status: 204 });
+		}
 	} catch (error) {
-		console.log('Failed to delete rseti data ', error.message);
+		return json({ error: error.message }, { status: 500 });
 	}
 }

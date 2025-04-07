@@ -5,10 +5,11 @@
 	import TextDescriptionField from '$lib/components/TextDescriptionField.svelte';
 	import ReviewForm from '$lib/components/ReviewForm.svelte';
 	import SubmissionErrorMessage from '$lib/components/SubmissionErrorMessage.svelte';
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import { message } from '/src/routes/trainees/traineeStore.js';
 	import { goto } from '$app/navigation';
+	import {showLoadingSpinner} from '/src/routes/store.js'
 
 	export let route;
 	export let formObject = {
@@ -98,6 +99,13 @@
 			formObject = formObject;
 		}
 	}
+
+	$: if (isSubmitting === true){
+		showLoadingSpinner.set(true)
+	} else {
+		showLoadingSpinner.set(false)
+	}
+
 
 	// ------------------------------------Enhance Function ------------------------------
   
@@ -272,6 +280,10 @@ function handleDropDown(event) {
 		saved = false;
 		formObject = formObject;
 	}
+
+	onDestroy(()=>{
+		showLoadingSpinner.set(false)
+	})
   
 
   </script>

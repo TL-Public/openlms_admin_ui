@@ -6,31 +6,41 @@
 	import CheckBox from '$lib/components/CheckBox.svelte';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { tokenExpired } from '/src/stores/store';
+	import { page } from '$app/stores';
+	import { invalidateAll } from '$app/navigation';
+	import Spinner from '$lib/components/Spinner.svelte';
+
+	let redirectTo = $page.url.searchParams.get('redirectTo');
+	let loggingIn = false;
 
 	export let form;
-    // extract the form details
+	// extract the form details
 	let error = form?.error;
 	let formLoginDetails = form?.loginDetails;
 	let showPassword = false;
 
-
 	let formObject = {
 		email: formLoginDetails?.email ?? '',
 		password: formLoginDetails?.password ?? ''
-        // rememberMe: formLoginDetails?.rememberMe ?? false
+		// rememberMe: formLoginDetails?.rememberMe ?? false
 	};
 
 	function handleFormEnhance({ formData, action, cancel }) {
+		loggingIn = true;
+		error=''
 		return async ({ result, update }) => {
 			await result;
-            // `result` is an `ActionResult` object
-
-			if (!Object.keys(result?.data)?.includes('error')) {
-				goto(`/courses`);
-                // tokenExpired.set(true);
-			} else {
+			// `result` is an `ActionResult` object
+			if (result.type == 'failure') {
 				error = result?.data?.error;
+				loggingIn = false;
+			}
+
+			if (result.type == 'redirect') {
+				// this handles both first login and relogin after forceed signout (401)
+				console.log('result.location', result.location);
+				
+				goto(result.location, { invalidateAll: true });
 			}
 		};
 	}
@@ -59,7 +69,9 @@
 		<LineDrawing />
 	</div>
 	<!-- Login Forms -->
-	<div class="flex flex-col justify-center items-center lg:justify-start flex-1 px-6 lg:px-36 py-12 lg:py-24 bg-offwhite min-h-screen lg:min-h-0">
+	<div
+		class="flex flex-col justify-center items-center lg:justify-start flex-1 px-6 lg:px-36 py-12 lg:py-24 bg-offwhite min-h-screen lg:min-h-0"
+	>
 		<div class="w-full max-w-md lg:max-w-none">
 			<div class="mb-4">
 				<span class="sr-only">Reap Logo</span>
@@ -68,8 +80,14 @@
 				</h2>
 				<h2 class="text-2xl text-center text-primary font-bold leading-[3rem]">Login</h2>
 			</div>
-
-			<form method="post" action="/login" class="w-full" use:enhance={handleFormEnhance}>
+			{#if redirectTo && redirectTo?.length > 0}
+				<p class="text-sm text-center text-red-600 my-4 sm:my-8">
+					Your session expired ! Please relogin.
+				</p>
+			{/if}
+			<form method="post" action={`/login`} class="w-full" use:enhance={handleFormEnhance}>
+				<input type="hidden" name="redirectTo" value={redirectTo} />
+			
 				<div class="mb-6">
 					<InputField
 						label={'Username'}
@@ -79,32 +97,34 @@
 						name="username"
 						required={true}
 						autocomplete="username"
+						disabled={loggingIn}
 					/>
 				</div>
 
 				<div class="mb-2">
 					<InputField
-					label="Password"
-					placeholder="Enter your password"
-					type={showPassword ? 'text' : 'password'}
-					bind:value={formObject.password}
-					name="password"
-					required
-					autocomplete="password"
-				>
-					<!-- Icon Slot -->
-					<button
-						type="button"
-						class="flex items-center justify-center text-gray-500 hover:text-gray-700 focus:outline-none"
-						on:click={toggleVisibility}
+						label="Password"
+						placeholder="Enter your password"
+						type={showPassword ? 'text' : 'password'}
+						bind:value={formObject.password}
+						name="password"
+						required
+						autocomplete="password"
+						disabled={loggingIn}
 					>
-						{#if showPassword}
-							<span class="material-icons text-lg">visibility</span>
-						{:else}
-							<span class="material-icons text-lg">visibility_off</span>
-						{/if}
-					</button>
-				</InputField>
+						<!-- Icon Slot -->
+						<button
+							type="button"
+							class="flex items-center justify-center text-gray-500 hover:text-gray-700 focus:outline-none"
+							on:click={toggleVisibility}
+						>
+							{#if showPassword}
+								<span class="material-icons text-lg">visibility</span>
+							{:else}
+								<span class="material-icons text-lg">visibility_off</span>
+							{/if}
+						</button>
+					</InputField>
 				</div>
 				<div class="flex justify-between mb-4 text-sm">
 					<!-- <CheckBox
@@ -118,8 +138,13 @@
 					<p class="text-red-500 text-sm mb-2">* {error}</p>
 				{/if}
 				<button
-					class="w-full text-center py-2 text-white bg-primary rounded-md font-semibold"
-					type="submit">Log in</button
+					class="w-full text-center py-2 text-white bg-primary rounded-md font-semibold flex justify-center items-center gap-2"
+					type="submit"
+					disabled={loggingIn}>Log in
+					{#if loggingIn}
+					<Spinner color={'#f97316'} />
+				{/if}
+					</button
 				>
 			</form>
 		</div>

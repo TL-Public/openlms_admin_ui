@@ -48,7 +48,7 @@
 		tableData = [];
 
 		if (testimonials?.error || !testimonials || testimonials.length === 0) {
-			error = 'No testimonials available';
+			error = testimonials?.error || 'No testimonials available';
 			return;
 		}
 
@@ -70,7 +70,6 @@
 				videoUrl: testimonial?.videoUrl,
 				type: testimonial?.videoUrl ? 'Video' : 'Text',
 				textOrUrlValue: testimonial?.videoUrl ? testimonial?.videoUrl : translation?.testimonialText
-				
 			};
 
 			tableData.push(testimonialData);
@@ -83,7 +82,6 @@
 	function handleSuccesMessageClose(e) {
 		message.set('');
 	}
-
 
 	function handleCancel() {
 		deleteTextInput = '';
@@ -104,8 +102,8 @@
 		selectedLanguage = e.detail;
 	}
 
-	function addPage(){
-		goto("/officialTestimonials/add")
+	function addPage() {
+		goto('/officialTestimonials/add');
 	}
 
 	// --------------------------Listing Table---------------------
@@ -158,7 +156,6 @@
 	];
 
 	function handleTableAction(event) {
-
 		const actionName = event.detail.actionName;
 		const actionData = event.detail.actionData;
 		message.set('');
@@ -169,25 +166,24 @@
 		testimonialText = actionData.testimonialText;
 		testimonialUuid = actionData.uuid;
 
-		if(actionName==='view'){
-			goto(`officialTestimonials/${testimonialUuid}/details`)
+		if (actionName === 'view') {
+			goto(`officialTestimonials/${testimonialUuid}/details`);
 		}
 
-		if(actionName==='edit'){
-			goto(`officialTestimonials/${testimonialUuid}/details/edit`)
+		if (actionName === 'edit') {
+			goto(`officialTestimonials/${testimonialUuid}/details/edit`);
 		}
 	}
 </script>
 
 <div class="mb-2">
 	{#if $message}
-	<SuccessMessage
-		successMessage={$message}
-		on:handleSuccessMessageClose={handleSuccesMessageClose}
-	/>
-{/if}
+		<SuccessMessage
+			successMessage={$message}
+			on:handleSuccessMessageClose={handleSuccesMessageClose}
+		/>
+	{/if}
 </div>
-
 
 <div class="flex justify-between items-start mb-8 gap-4 flex-nowrap">
 	<div>
@@ -212,19 +208,19 @@
 			showSearchButton={false}
 		/>
 		<div class="flex gap-2 ml-auto">
-			<Button on:click={addPage}>
-				+ New Testimonial 
-			</Button>
+			<Button on:click={addPage}>+ New Testimonial</Button>
 		</div>
-		</div>
-	<ListingTable {searchValue} 
-	{tableData} 
-	on:tableActionClick={handleTableAction} 
-	{error} 
-	{tableHeaderDisplay}
-	{actionConfigObject}
-	rowHeight={'compact'}
-	bind:sortAccordingTo />
+	</div>
+	<ListingTable
+		{searchValue}
+		{tableData}
+		on:tableActionClick={handleTableAction}
+		{error}
+		{tableHeaderDisplay}
+		{actionConfigObject}
+		rowHeight={'compact'}
+		bind:sortAccordingTo
+	/>
 </div>
 
 <div>
@@ -240,24 +236,20 @@
 			on:handleDeletion={handleFAQDeletion}
 		>
 			<hr />
-			<div class="flex flex-col gap-2 p-6 bg-offwhite rounded-lg mb-4 border border-gray-50 text-darkGray">
+			<div
+				class="flex flex-col gap-2 p-6 bg-offwhite rounded-lg mb-4 border border-gray-50 text-darkGray"
+			>
 				<div>
-					<p class="text-sm text-darkGray capitalize"> 
-					<span class="label">
-						Name :
-					</span>	
-					{personName}
+					<p class="text-sm text-darkGray capitalize">
+						<span class="label"> Name : </span>
+						{personName}
 					</p>
 					<p class="text-sm">
-						<span class="label">
-							Designation :
-						</span> 
+						<span class="label"> Designation : </span>
 						{designation}
-						</p>
+					</p>
 					<p class="text-sm">
-					<span class="label">
-						Testimonial text : 
-					</span>	
+						<span class="label"> Testimonial text : </span>
 						{testimonialText}
 					</p>
 				</div>

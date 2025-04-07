@@ -1,22 +1,39 @@
-// For GET API
 import { String_Constants } from '/src/config/constants.js';
+import { browser } from '$app/environment';
+import { userDetails } from '/src/routes/store.js';
+import { getErrorMessage, handleRedirection } from '$lib/utils/helper.js';
+import { resourceNames, userActions } from '$lib/data.js';
 
-import { error } from '@sveltejs/kit';
+export async function load({ fetch, depends, parent, url }) {
+	if (browser) {
+		const { user } = await parent();
+		userDetails?.set(user);
+	}
 
-export async function load({ fetch, depends }) {
 	depends('users:all-users');
 
 	const fetchUsers = async () => {
+		let res;
 		try {
-			const res = await fetch(`/apis/users`);
+			res = await fetch(`/apis/users`);
 
-			if (!res.ok || res.status !== 200) {
-				throw error(404, 'Data not found');
+			if (!res.ok || res.status != 200) {
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: res?.status,
+					action: userActions.LIST,
+					module: resourceNames.USERS
+				});
+
+				if (redirectUser) {
+					handleRedirection(res.status, url.pathname, url.search);
+				}
+
+				return { error: errorMsg };
 			}
 
 			const data = await res.json();
 			if (data?.length === 0 || Object.keys(data)?.length === 0) {
-				throw error(404, 'Data not found');
+				throw new Error('No users found');
 			}
 
 			return data;

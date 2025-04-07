@@ -3,8 +3,15 @@
 	import RadioButton from '$lib/components/RadioButton.svelte';
 	import { getCategoryName } from '$lib/utils/helper.js';
 	import Edit from '$lib/svgComponents/Edit.svelte';
+	import {roles} from '$lib/config.js'
+	import {userDetails} from '/src/routes/store.js'
+	import { onMount } from 'svelte';
+	import { checkActionPermission } from '$lib/utils/helper.js'
+	import {moduleNames, actionNames} from '$lib/data.js'
 
 	export let courseData = {};
+
+	let showEditIcon=false;
 
 	$: categoryName = getCategoryName(courseData?.category);
 	// Hardcoded for testing
@@ -26,11 +33,32 @@
 	// Update selected translation based on the selected language
 	function updateSelectedTranslation() {
 		selectedTranslation =
-			courseData.translations?.find((t) => t.languageCode === selectedLanguage) || {};
+			courseData?.translations?.find((t) => t?.languageCode === selectedLanguage) || {};
 	}
 
 	// Initialize the selected translation
 	$: courseData && updateSelectedTranslation();
+
+
+	function roleBasedAcessSetting(){
+		if(!$userDetails?.role) return
+		if(checkActionPermission($userDetails?.role, moduleNames.COURSES, actionNames?.EDIT)){
+			showEditIcon=true	
+		} else {
+			showEditIcon=false	
+
+		}
+		}
+
+		onMount(() => {
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe(); // Cleanup subscription
+	});
 </script>
 
 <div class=" shadow bg-offwhite rounded-lg p-6">
@@ -47,10 +75,12 @@
 						<div class="text-base font-bold capitalize text-primary">
 							{selectedTranslation?.title ? selectedTranslation?.title : 'No Title Found'}
 						</div>
+						{#if showEditIcon}
 						<a href={`/courses/${courseData?.uuid}/details/edit`}>
 							<!-- <img src="/edit.svg" alt="Edit" class="w-5 h-5" /> -->
 							<Edit stroke="#FF6A1F" />
 						</a>
+						{/if}
 					</div>
 					<!-- <div class="mb-4">
 						<RadioButton

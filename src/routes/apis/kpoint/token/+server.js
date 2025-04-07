@@ -1,15 +1,24 @@
+import { BASE_URL } from '$lib/config';
+
 export async function POST(event) {
 	try {
-		const body = await event.request.json();
+		const userUuid = event.cookies.get('userUuid');
+		let payload = {};
+
+		if (userUuid) {
+			payload = { email: `${userUuid}@reaplearn.in`, displayName: userUuid };
+		} else {
+			payload = { email: 'public@reaplearn.in', displayName: 'public' };
+		}
 		const options = {
 			method: 'POST',
-			body: JSON.stringify(body),
+			body: JSON.stringify(payload),
 			headers: {
 				'Content-Type': 'application/json'
 			}
 		};
 		const res = await fetch(
-			`http://reap-demo-env1.ap-south-1.elasticbeanstalk.com/reap/kpoint/token`,
+			`${BASE_URL}/apis/v1/auth/kpoint/token`,
 			options
 		);
 		const data = await res.json();

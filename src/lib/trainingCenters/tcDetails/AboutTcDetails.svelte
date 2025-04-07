@@ -2,8 +2,14 @@
 	import RadioButton from '$lib/components/RadioButton.svelte';
 	import Edit from '$lib/svgComponents/Edit.svelte';
 	import { page } from '$app/stores';
+	import { userDetails } from '/src/routes/store.js';
+	import { onMount } from 'svelte';
+	import { checkActionPermission } from '$lib/utils/helper.js';
+	import { moduleNames, actionNames } from '$lib/data.js';
 
 	export let tcDetailsData = {};
+
+	let showEditIcon = false;
 
 	let languageGroup = [
 		{ title: 'English', code: 'en' },
@@ -31,8 +37,8 @@
 
 	function setDisplayData(language) {
 		let translatedData =
-		tcDetailsData.translations?.find(
-				(t) => t.languageCode?.trim()?.toLowerCase() === language?.trim()?.toLowerCase()
+			tcDetailsData?.translations?.find(
+				(t) => t?.languageCode?.trim()?.toLowerCase() === language?.trim()?.toLowerCase()
 			) || {};
 
 		displayData = {
@@ -55,6 +61,28 @@
 
 		// setDisplayData(languageSelected);
 	}
+
+	function roleBasedAcessSetting() {
+		if (!$userDetails?.role) return;
+		if (
+			checkActionPermission($userDetails?.role, moduleNames.TRAINING_CENTERS, actionNames?.EDIT)
+		) {
+			showEditIcon = true;
+		} else {
+			showEditIcon = false;
+		}
+	}
+
+	onMount(() => {
+		// Run role-based access settings
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe();
+	});
 </script>
 
 <div
@@ -71,9 +99,11 @@
 		<div>
 			<div class="flex gap-2 items-center">
 				<h1 class="heading-L font-bold capitalize">{displayData?.name}</h1>
-				<a href={`/trainingCenters/${tcDetailsData?.uuid}/details/edit`}>
-					<Edit stroke="#FF6A1F" /></a
-				>
+				{#if showEditIcon}
+					<a href={`/trainingCenters/${tcDetailsData?.uuid}/details/edit`}>
+						<Edit stroke="#FF6A1F" /></a
+					>
+				{/if}
 			</div>
 			<div class="mt-1">
 				<RadioButton

@@ -64,15 +64,26 @@ export const months = [
 ];
 
 export const rolesList = [
+	{ name: 'Super Admin', roleId: 1, order: 1 },
 	{ name: 'NAR Admin', roleId: 2, order: 2 },
 	{ name: 'NAR Staff', roleId: 3, order: 3 },
 	{ name: 'State Admin', roleId: 4, order: 4 },
 	{ name: 'State Staff', roleId: 5, order: 5 },
 	{ name: 'RSETI Admin', roleId: 6, order: 6 },
 	{ name: 'RSETI Staff', roleId: 7, order: 7 },
-	{ name: 'Trainer', roleId: 8, order: 8 },
-	{ name: 'Trainee', roleId: 9, order: 9 }
+	{ name: 'Trainer', roleId: 8, order: 8 }
 ];
+
+export const roleIds = {
+	SUPER_ADMIN: 1,
+	NAR_ADMIN: 2,
+	NAR_STAFF: 3,
+	STATE_ADMIN: 4,
+	STATE_STAFF: 5,
+	RSETI_ADMIN: 6,
+	RSETI_STAFF: 7,
+	TRAINER: 8
+};
 
 export const usersWithStateId = [4, 5, 6, 7, 8, 9];
 export const usersWithRsetiId = [6, 7, 8, 9];
@@ -84,6 +95,11 @@ export const roleNames = {
 	TRAINER_USER: 'TRAINER_USER',
 	TRAINEE_USER: 'TRAINEE_USER'
 };
+
+export const userTypes= {
+	ADMIN_USER:'admin user',
+	TRAINEE:'trainee'
+}
 export let traineeStats = [
 	{
 		label: 'Total Trainees',
@@ -469,4 +485,79 @@ export let courseData = {
 			numberOfVideos: 0
 		}
 	]
+};
+//for RBAC
+export let moduleNames = {
+	NAR: 'nar',
+	COURSES: 'courses',
+	TRAINING_CENTERS: 'trainingCenters',
+	TRAINING_CENTER_COURSES: 'trainingCenterCourses',
+	TRAINEES: 'trainees',
+	TRAINEE_COURSES: 'traineeCourses',
+	USERS: 'users',
+	TRAINEE_TESTIMONIALS: 'traineeTestimonials',
+	OFFICIAL_TESTIMONIALS: 'officialTestimonials',
+	FAQS: 'FAQs',
+	CONFIG:'config'
+};
+// for RBAC - DO NOT use this for action names in error handling
+export const actionNames = {
+	ADD: 'add',
+	EDIT: 'edit',
+	DELETE: 'delete',
+	LIST: 'list',
+	DETAILS: 'details',
+	ADD_CHAPTER: 'addChapter',
+	EDIT_CHAPTER: 'editChapter',
+	DELETE_CHAPTER: 'deleteChapter',
+	LIST_CHAPTER: 'listChapter',
+	REORDER_CHAPTER: 'reorderChapter',
+	ADD_VIDEO: 'addVideo',
+	DELETE_VIDEO: 'deleteVideo',
+	REORDER_VIDEO: 'reorderVideo',
+	MOVE_VIDEO: 'moveVideo'
+};
+
+// for RBAC - in the same format as route names
+export const menuItems = {
+	DASHBOARD: 'dashboard',
+	NAR: 'nar',
+	STATES: 'states',
+	COURSES: 'courses',
+	TRAINING_CENTERS: 'trainingCenters',
+	VIDEOS: 'videos',
+	USERS: 'users',
+	TRAINEES: 'trainees',
+	FAQS: 'FAQs',
+	OFFICIAL_TESTIMONIALS: 'officialTestimonials',
+	TRAINEE_TESTIMONIALS: 'traineeTestimonials',
+	MY_PROFILE: 'myProfile',
+	CONFIG: 'config'
+};
+
+//for error messages - in readable format with spaces
+export let resourceNames = {
+	NAR: 'NAR',
+	COURSE: 'Course',
+	TRAINING_CENTER: 'Training Center',
+	TRAINING_CENTER_COURSE: 'Training center course',
+	TRAINEE: 'Trainee',
+	TRAINEE_COURSE: 'Trainee course',
+	USERS: 'User',
+	TRAINEE_TESTIMONIAL: 'Trainee testimonial',
+	OFFICIAL_TESTIMONIAL: 'Official testimonial',
+	FAQ: 'FAQ',
+	FAQCategory: 'FAQ Category',
+	VIDEO: 'Video',
+	CHAPTER: 'Chapter',
+	BANK: 'Bank',
+	STATE: 'State'
+};
+
+export const userActions = {
+	LIST: 'View list',
+	DETAILS: 'View details',
+	ADD: 'Add',
+	EDIT: 'Edit',
+	DELETE: 'Delete'
 };

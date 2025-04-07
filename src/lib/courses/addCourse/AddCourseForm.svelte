@@ -13,6 +13,9 @@
 	import ReviewForm from '$lib/components/ReviewForm.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import MultiStepProgressComponent from '$lib/components/MultiStepProgressComponent.svelte';
+	import { handleRedirection } from '$lib/utils/helper.js';
+	import { page } from '$app/stores';
+	import {showLoadingSpinner} from '/src/routes/store.js'
 
 	export let route;
 	export let params;
@@ -42,6 +45,8 @@
 	let sizeErrorMessage = '';
 	const maxFileSizeInIntegers = 1;
 	const maxFileSize = 1 * 1024 * 1024;
+	const url = $page.url;
+
 	let errorMessage = '';
 	let isSubmitting = false;
 	let steps = [
@@ -63,6 +68,12 @@
 			displayImage = formObject?.image;
 			formObject = formObject;
 		}
+	}
+
+	$: if (isSubmitting === true){
+		showLoadingSpinner.set(true)
+	} else {
+		showLoadingSpinner.set(false)
 	}
 
 	function handleDropDown(e) {
@@ -127,6 +138,7 @@
 		// If there are validation errors, cancel the submission and handle errors
 		if (Object.keys(validationErrors)?.length > 0) {
 			saved = false;
+			isSubmitting=false
 			cancel();
 			return;
 		}
@@ -134,9 +146,10 @@
 		return async ({ result, update }) => {
 			await result;
 			// `result` is an `ActionResult` object
+			console.log('result', result);
 			if (search == '?/final') {
-			isSubmitting = true;
-				if (!Object.keys(result?.data)?.includes('error')) {
+				isSubmitting = true;
+				if (result.type == 'success') {
 					if (method === 'POST') {
 						const dataObject = JSON.stringify({ uuid: result?.data?.data?.uuid });
 						goto(`/courses/${result?.data?.data?.uuid}/details`, {
@@ -151,17 +164,21 @@
 						});
 						message.set(`Successfully edited course -"${formObject?.titleEn}".`);
 					}
-				} else {
+				}
+
+				if (result.type == 'failure') {
 					// repopulating the dropdown placeholder
 					isSubmitting = false;
 					formObject.category = result?.data?.data?.category;
 					formObject = formObject;
 					creationError = true;
 					if (result?.data?.error) {
-						if (result?.data?.status === 409) {
-							errorMessage = result?.data?.error + ` Course Code already exists.`;
+						errorMessage = result?.data?.error;
+
+						if (result?.status === 401) {
+							handleRedirection(result.status, url.pathname, url.search);
 						} else {
-							errorMessage = result?.data?.error;
+							//handle other errors
 						}
 					}
 				}
@@ -178,6 +195,10 @@
 		currentStep = 1;
 		formObject = formObject;
 	}
+
+	onDestroy(()=>{
+		showLoadingSpinner.set(false)
+	})
 </script>
 
 <div class="text-darkGray">

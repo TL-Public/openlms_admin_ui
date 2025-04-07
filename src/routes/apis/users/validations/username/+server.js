@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { BASE_URL } from '$lib/config';
 
 export async function GET({ request, fetch, cookies }) {
 	const authToken = cookies.get('authToken');
@@ -13,7 +14,7 @@ export async function GET({ request, fetch, cookies }) {
 			return json({ status: 400, error: 'Username is required' }, { status: res.status });
 		}
 
-		const endPoint = `http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/users/usernames/${username}`;
+		const endPoint = `${BASE_URL}/apis/v1/users/usernames/${username}`;
 		res = await fetch(endPoint, {
 			method: 'GET',
 			headers: {

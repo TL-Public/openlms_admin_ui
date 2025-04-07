@@ -1,10 +1,10 @@
 <script>
-	import { goto } from '$app/navigation';
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onDestroy } from 'svelte';
 	import DragAndDrop from '$lib/components/DragAndDrop.svelte';
 	import DeletionErrorMessage from '$lib/components/DeletionErrorMessage.svelte';
 	import SuccessMessage from '$lib/components/SuccessMessage.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import {showLoadingSpinner} from '/src/routes/store.js'
 
 	export let bulkUploadItemName = '';
 	export let endPoint = '';
@@ -30,6 +30,7 @@
 		fileToUpload = null;
 		errorMessage = '';
 		isSubmitting = false;
+		showLoadingSpinner.set(false)
 	}
 
 	function handleSuccessMessageClose() {
@@ -42,6 +43,7 @@
 			successMessage = '';
 			errorReportUrl = '';
 			isSubmitting = true;
+			showLoadingSpinner.set(true)
 			if (!fileToUpload) {
 				errorMessage = 'Please select a file to continue';
 				return;
@@ -68,11 +70,16 @@
 			console.error('Error:', error);
 		} finally {
 			isSubmitting = false;
+			showLoadingSpinner.set(false)
 			if (!errorMessage) {
 				handleCancel();
 			}
 		}
 	}
+
+	onDestroy(()=>{
+		showLoadingSpinner.set(false)
+	})
 </script>
 
 <h2 class="mb-2 font-semibold capitalize text-primary">Bulk upload {bulkUploadItemName}</h2>

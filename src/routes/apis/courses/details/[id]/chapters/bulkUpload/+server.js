@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-
+import { BASE_URL } from '$lib/config';
 
 export async function POST({ request, cookies }) {
 	const authToken = cookies.get('authToken');
@@ -10,7 +10,7 @@ export async function POST({ request, cookies }) {
 		const formData = await request.formData();
 
          res = await fetch(
-            `http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/courses/batch-update/videos?file`,
+            `${BASE_URL}/apis/v1/courses/batch-update/videos?file`,
             {
                 method: 'POST',
                 headers: {

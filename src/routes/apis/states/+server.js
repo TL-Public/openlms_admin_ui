@@ -1,4 +1,6 @@
 import { json } from "@sveltejs/kit";
+import { BASE_URL } from '$lib/config';
+
 
 // API to get list of all states 
 export async function GET() {
@@ -13,7 +15,7 @@ export async function GET() {
 		// 	}
 		// };
 		const res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/states`
+			`${BASE_URL}/apis/v1/states`
 		);
 		if(!res.ok){
             throw new Error('Failed to fetch data')
@@ -23,7 +25,6 @@ export async function GET() {
 			throw new Error('Failed to fetch data');
 		}
 		const data = await res.json();
-		console.log('data', data)
 		if (data?.length ===0 || Object.keys(data)?.length===0) {
 			throw new Error('Data not found');
 		}

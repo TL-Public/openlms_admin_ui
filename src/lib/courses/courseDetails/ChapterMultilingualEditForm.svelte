@@ -7,6 +7,10 @@
 	import LineLoader from '$lib/components/LineLoader.svelte';
 	import Book from '$lib/svgComponents/Book.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { getErrorMessage } from '$lib/utils/helper.js';
+	import { resourceNames, userActions } from '$lib/data.js';
 
 	export let name = '';
 	export let name2 = '';
@@ -54,10 +58,11 @@
 	}
 
 	async function handleSubmit() {
+		let response;
 		try {
 			errorMessage = '';
 			isSubmitting = true;
-			const response = await fetch(
+			response = await fetch(
 				`/apis/courses/details/${courseUuid}/chapters/${uuid}?courseUuid=${courseUuid}&&uuid=${uuid}`,
 				{
 					method: 'PUT',
@@ -66,14 +71,22 @@
 			);
 
 			if (!response.ok) {
-				errorMessage = `Failed to edit chapter. Please try again!`;
-				throw new Error('Failed to edit chapter');
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: response?.status,
+					action: userActions.EDIT,
+					module: resourceNames.CHAPTER
+				});
+
+				if (redirectUser) {
+					handleRedirection(response.status, $page.url.pathname, $page.url.search);
+				}
+
+				errorMessage = errorMsg;
 			}
+
 			const result = await response.json();
 			if (!result.error) {
 				dispatch('handleEditChapter', { result, previousTitle: previousName });
-			} else {
-				errorMessage = `Failed to edit chapter. Please try again!`;
 			}
 		} catch (error) {
 			console.error('Error:', error);
@@ -96,12 +109,7 @@
 	});
 </script>
 
-<div
-	class="relative z-10 "
-	aria-labelledby="modal-title"
-	role="dialog"
-	aria-modal="true"
->
+<div class="relative z-10" aria-labelledby="modal-title" role="dialog" aria-modal="true">
 	<div
 		class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity pointer-events-none"
 		aria-hidden="true"
@@ -109,7 +117,7 @@
 	></div>
 
 	<div class="fixed inset-0 z-10 w-screen overflow-y-auto" id="form">
-		<div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+		<div class="flex min-h-full justify-center p-4 text-center items-center sm:p-0">
 			<div
 				class="relative transform overflow-hidden rounded-lg bg-gray-10 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6"
 				on:click|stopPropagation
@@ -183,12 +191,11 @@
 				</div>
 
 				<div class="mt-5 sm:mt-4 flex gap-2 justify-end">
-					<Button on:click={handleSubmit} disabled={isSubmitting}>Submit</Button>
 					<Button btnType="secondary" disabled={isSubmitting} on:click={handleCancel}>Cancel</Button
 					>
+					<Button on:click={handleSubmit} disabled={isSubmitting}>Submit</Button>
 				</div>
 			</div>
 		</div>
 	</div>
 </div>
-
