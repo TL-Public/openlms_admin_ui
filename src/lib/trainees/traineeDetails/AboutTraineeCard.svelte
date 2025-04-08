@@ -91,7 +91,7 @@ function handleCancel(){
             {traineeDetailsData?.candidateName}
           </div>
           <a href={`/trainees/${traineeDetailsData?.uuid}/details/edit`}>
-            <Edit stroke="#FF6A1F" />
+            <Edit stroke="#206FC9" />
           </a>
         </div>
         <div class="space-y-1 text-sm">

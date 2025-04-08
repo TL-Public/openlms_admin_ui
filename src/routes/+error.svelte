@@ -25,7 +25,7 @@
 			<h2 class="text-xl md:text-2xl font-semibold text-primary mb-6">
 				{errorTitle}
 			</h2>
-			<a href="/" class="text-sm rounded-md font-semibold text-white bg-orange-100 px-4 sm:px-6 py-2">
+			<a href="/" class="text-sm rounded-md font-semibold text-white bg-secondary px-4 sm:px-6 py-2">
 				Go to Home
 			</a>
 		</div>

@@ -34,7 +34,7 @@
 {/if}
 <main class="flex min-h-screen bg-gray-5 overflow-x-hidden">
 	{#if $showLoadingSpinner === true}
-	<Spinner size={48} overlay={true} color={'#f97316'}/>
+	<Spinner size={48} overlay={true} color={'#206FC9'}/>
 	{/if}
 	
 	{#if route !== '/login'}

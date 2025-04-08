@@ -81,7 +81,7 @@
 				{userData.name}
 				{#if showEditIcon && enableEdit}
 					<a href={`/users/${userData.uuid}/details/edit`}>
-						<Edit stroke="#FF6A1F" />
+						<Edit stroke="#206FC9" />
 						<!-- <GoogleMatrialIcon iconName='edit' /> -->
 					</a>
 				{/if}

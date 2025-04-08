@@ -2,7 +2,7 @@
     export let position = 'fixed'
     export let addClass = ''
 </script>
-<div class={`border-orange-100 ${position} ${addClass} top-0 left-0 border-[1.5px] z-[1000] loader`}>
+<div class={`border-secondary ${position} ${addClass} top-0 left-0 border-[1.5px] z-[1000] loader`}>
 
 </div>
 

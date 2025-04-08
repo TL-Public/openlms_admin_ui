@@ -160,7 +160,7 @@
 					btnType="custom"
 					  on:click={handleEditVideo} class="p-1"
 					>
-					  <Edit size={8} stroke="#143164" />
+					  <Edit size={8} stroke="#206FC9" />
 					  <span class="sr-only">Edit</span>
 					</Button>
 					{/if}

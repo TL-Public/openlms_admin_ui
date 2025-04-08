@@ -84,7 +84,7 @@
 									href={`/traineeTestimonials/edit?data=` +
 										encodeURIComponent(JSON.stringify(testimonialDetails))}
 								>
-									<Edit stroke="#FF6A1F" />
+									<Edit stroke="#206FC9" />
 								</a>
 							</p>
 						</div>
@@ -129,7 +129,7 @@
 							<p class="flex gap-2 heading-L items-center">
 								{selectedTranslation?.name ?? '-'}
 								<a href={`/traineeTestimonials/${testimonialDetails?.uuid}/details/edit`}>
-									<Edit stroke="#FF6A1F" />
+									<Edit stroke="#206FC9" />
 								</a>
 							</p>
 						</div>

@@ -16,7 +16,7 @@
 			<div class="flex gap-1 items-center mb-4">
 				<div class="heading-L">National Academy of RUDSETI</div>
 				<a href={`/nar/${narDetails.uuid}/edit`}>
-					<Edit stroke="#FF6A1F" />
+					<Edit stroke="#206FC9" />
 				</a>
 			</div>
 			<div class="flex gap-5 flex-col sm:flex-row">

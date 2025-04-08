@@ -19,9 +19,9 @@
 			<button
 				aria-current={tab?.text === activeTab?.text ? true : false}
 				on:click={() => handleTab(tab)}
-				class=" whitespace-nowrap cursor-pointer border-b-2 px-4 py-3 text-sm font-medium text-darkGray hover:bg-gray-10 hover:border-orange-40 hover:text-gray-700 {tab?.text ===
+				class=" whitespace-nowrap cursor-pointer border-b-2 px-4 py-3 text-sm font-medium text-darkGray hover:bg-gray-10 hover:border-primary-hover hover:text-gray-700 {tab?.text ===
 				activeTab?.text
-					? 'border-orange-100  hover:bg-gray-30 bg-gray-30 font-semibold'
+					? 'border-secondary  hover:bg-gray-30 bg-gray-30 font-semibold'
 					: 'border-transparent bg-sibebarGray highlight last:rounded-tr-lg'}"
 			>
 				<div class="flex items-center space-x-2">

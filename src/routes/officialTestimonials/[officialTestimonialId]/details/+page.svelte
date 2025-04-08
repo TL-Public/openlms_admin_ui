@@ -60,7 +60,7 @@
 								{selectedTranslation?.name ?? '-'}
 
 								<a href={`/officialTestimonials/${testimonialDetails.uuid}/details/edit`}>
-									<Edit stroke="#FF6A1F" />
+									<Edit stroke="#206FC9" />
 								</a>
 							</p>
 

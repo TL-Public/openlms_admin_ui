@@ -2,7 +2,7 @@
     export let width = 'w-full';
     export let height = 'h-1';
     export let bgColor = 'bg-gray-200';
-    export let loaderColor = 'bg-orange-100';
+    export let loaderColor = 'bg-secondary';
     export let duration = 'duration-1000';
   </script>
   
