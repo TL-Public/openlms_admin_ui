@@ -9,6 +9,7 @@ export default {
 			screens: {
 				'bp-420px': '420px',
 				'bp-900px': '900px'
+				
 			},
 			colors: {
 				primary: '#143164',
