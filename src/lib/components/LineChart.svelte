@@ -84,7 +84,7 @@
         </canvas>
     {:else}
 	<div class="p-4 text-center">
-		<Spinner color={'#f97316'} size={26} />
+		<Spinner color={'#206FC9'} size={26} />
 	</div>
     {/if}
 </div>

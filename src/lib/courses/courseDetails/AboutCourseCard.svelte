@@ -78,7 +78,7 @@
 						{#if showEditIcon}
 						<a href={`/courses/${courseData?.uuid}/details/edit`}>
 							<!-- <img src="/edit.svg" alt="Edit" class="w-5 h-5" /> -->
-							<Edit stroke="#FF6A1F" />
+							<Edit stroke="#206FC9" />
 						</a>
 						{/if}
 					</div>

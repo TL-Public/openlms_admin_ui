@@ -52,21 +52,24 @@
 
 <div class="w-full flex flex-col lg:flex-row min-h-screen">
 	<!-- Left side text and decoration -->
-	<div class="w-full lg:w-1/2 bg-white80 relative hidden lg:flex lg:flex-col">
+
+	<div class="w-full lg:w-1/2 bg-blue-10 relative hidden lg:flex lg:flex-col">
+
 		<div class="px-36 flex flex-col flex-1 justify-center">
 			<h2 class="text-4xl font-extrabold text-primary mb-4 relative">
-				<img
+				<!-- <img
 					src="/RSETI-text-decoration.svg"
 					alt=""
 					class="rotate-[270deg] absolute -top-7 -left-7"
-				/> Infinite learning enhanced by diverse digital solutions
+				/>  -->
+				Infinite learning enhanced by diverse digital solutions
 			</h2>
 			<p class="text-primary">
 				Our platform seamlessly blends traditional knowledge with innovative technology, creating a
 				unique and effective educational experience for all.
 			</p>
 		</div>
-		<LineDrawing />
+		<!-- <LineDrawing /> -->
 	</div>
 	<!-- Login Forms -->
 	<div
@@ -142,7 +145,7 @@
 					type="submit"
 					disabled={loggingIn}>Log in
 					{#if loggingIn}
-					<Spinner color={'#f97316'} />
+					<Spinner color={'#206FC9'} />
 				{/if}
 					</button
 				>

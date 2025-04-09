@@ -89,7 +89,7 @@
 	class="flex flex-col text-sm p-6 rounded-lg gap-4 text-darkGray border border-gray-50 bg-white leading-relaxed"
 >
 	<div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-		<div class="border-orange-100 border rounded-full p-2 flex items-center justify-center">
+		<div class="border-secondary border rounded-full p-2 flex items-center justify-center">
 			<img
 				src="/learningCentersIcon.svg"
 				alt="Learning Center"
@@ -101,7 +101,7 @@
 				<h1 class="heading-L font-bold capitalize">{displayData?.name}</h1>
 				{#if showEditIcon}
 					<a href={`/trainingCenters/${tcDetailsData?.uuid}/details/edit`}>
-						<Edit stroke="#FF6A1F" /></a
+						<Edit stroke="#206FC9" /></a
 					>
 				{/if}
 			</div>
