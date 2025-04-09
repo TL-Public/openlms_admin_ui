@@ -20,10 +20,10 @@
 			name: 'NAR',
 			link: '/nar'
 		},
-		{
-			name: 'States',
-			link: '/states'
-		},
+		// {
+		// 	name: 'States',
+		// 	link: '/states'
+		// },
 		{
 			name: 'Training Centers',
 			link: '/trainingCenters'

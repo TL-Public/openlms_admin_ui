@@ -42,11 +42,11 @@
 			link: '/nar',
 			key: menuItems?.NAR
 		},
-		{
-			name: 'States',
-			link: '/states',
-			key: menuItems?.STATES
-		},
+		// {
+		// 	name: 'States',
+		// 	link: '/states',
+		// 	key: menuItems?.STATES
+		// },
 		{
 			name: 'Training Centers',
 			link: '/trainingCenters',
