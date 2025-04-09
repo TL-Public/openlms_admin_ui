@@ -52,7 +52,7 @@
 </script>
 
 <header
-	class=" h-16 sticky top-0 sm:h-20 py-2 px-4 flex justify-between lg:py-2 lg:px-20 items-center bg-ivory text-darkGray shadow-md w-full z-10"
+	class=" h-16 sticky top-0 sm:h-20 py-2 px-4 flex justify-between lg:py-2 lg:px-20 items-center bg-white800 text-darkGray shadow-md w-full z-10"
 >
 	<div on:click={handleLogoClick}>
 		<a href="/">
