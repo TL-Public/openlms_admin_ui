@@ -52,7 +52,9 @@
 
 <div class="w-full flex flex-col lg:flex-row min-h-screen">
 	<!-- Left side text and decoration -->
+
 	<div class="w-full lg:w-1/2 bg-blue-10 relative hidden lg:flex lg:flex-col">
+
 		<div class="px-36 flex flex-col flex-1 justify-center">
 			<h2 class="text-4xl font-extrabold text-primary mb-4 relative">
 				<!-- <img
@@ -74,11 +76,10 @@
 		class="flex flex-col justify-center items-center lg:justify-start flex-1 px-6 lg:px-36 py-12 lg:py-24 bg-offwhite min-h-screen lg:min-h-0"
 	>
 		<div class="w-full max-w-md lg:max-w-none">
-			<div class="mb-4">
-				<span class="sr-only">Reap Logo</span>
-				<h2>
-					<img src="/eduReachSmallLogo.svg" alt="" class="w-40 h-28 lg:w-56 lg:h-28 mx-auto">
-					<!-- <ReapLogo addClass="w-40 h-28 lg:w-56 lg:h-40 mx-auto" /> -->
+			<div class="mb-4 flex flex-col items-center justify-center">
+				<span class="sr-only">Edu-reach Logo</span>
+				<h2 class="text-center">
+					<ReapLogo addClass="w-40 h-28 lg:w-56 lg:h-40" />
 				</h2>
 				<h2 class="text-2xl text-center text-primary font-bold leading-[3rem]">Login</h2>
 			</div>
