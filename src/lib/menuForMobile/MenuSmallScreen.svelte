@@ -20,10 +20,10 @@
 			name: 'NAR',
 			link: '/nar'
 		},
-		{
-			name: 'States',
-			link: '/states'
-		},
+		// {
+		// 	name: 'States',
+		// 	link: '/states'
+		// },
 		{
 			name: 'Training Centers',
 			link: '/trainingCenters'
@@ -118,7 +118,7 @@
 			{#if $userDetails?.name}
 					<li class=" w-full flex gap-4 items-center mt-auto   pt-2 pl-4">
 						<div
-							class="flex items-center justify-center w-8 h-8 bg-orange-100 font-medium text-white capitalize text-xl rounded-full leading-none m-0 p-0"
+							class="flex items-center justify-center w-8 h-8 bg-secondary font-medium text-white capitalize text-xl rounded-full leading-none m-0 p-0"
 						>
 							{$userDetails?.name ? $userDetails.name[0] : ''}
 						</div>

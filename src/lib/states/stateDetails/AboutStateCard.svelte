@@ -12,7 +12,7 @@
 		<div class="flex gap-1 items-center mb-4">
 			<div class="text-base font-bold capitalize text-primary">{stateDetails?.name ?? ''}</div>
 			<a href={`/states/edit?data=` + encodeURIComponent(JSON.stringify(stateDetails))}>
-				<Edit stroke="#FF6A1F" />
+				<Edit stroke="#206FC9" />
 			</a>
 			
 		</div>

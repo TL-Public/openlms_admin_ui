@@ -99,12 +99,12 @@
 					<div class="flex items-center gap-3 mr-8">
 						{#if editIcon}
 							<button on:click|stopPropagation={handleEdit} class="flex items-center">
-								<Edit stroke="#FF6A1F" />
+								<Edit stroke="#206FC9" />
 							</button>
 						{/if}
 						{#if deleteIcon}
 							<button on:click|stopPropagation={handleDeleteButtonClick} class="flex items-center">
-								<Delete stroke="#FF6A1F" />
+								<Delete stroke="#206FC9" />
 							</button>
 						{/if}
 					</div>

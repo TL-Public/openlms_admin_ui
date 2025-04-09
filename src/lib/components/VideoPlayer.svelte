@@ -149,7 +149,7 @@
 	{#if !videoLoaded}
 		<div class="absolute top-0 left-0 w-full bg-gray-50 animate-pulse z-5 h-[95%]"></div>
 		<div
-			class="w-20 h-20 border-8 border-gray-30 border-t-orange-100 z-5 absolute top-1/2 left-1/2 rounded-full -translate-x-1/2 -translate-y-1/2 round-loader origin-[0%_0%]"
+			class="w-20 h-20 border-8 border-gray-30 border-t-secondary z-5 absolute top-1/2 left-1/2 rounded-full -translate-x-1/2 -translate-y-1/2 round-loader origin-[0%_0%]"
 		></div>
 	{:else if videoFailed}
 		<div

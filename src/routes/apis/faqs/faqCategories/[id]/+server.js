@@ -36,7 +36,7 @@ export async function PUT({ request, params, url, cookies }) {
 		const authToken = cookies.get('authToken');
 		const body = await request.json();
 		res = await fetch(
-			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/faqcategories/${id}`,
+			`${BASE_URL}/apis/v1/faqcategories/${id}`,
 			{
 				method: 'PUT',
 				headers: {

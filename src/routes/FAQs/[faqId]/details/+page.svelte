@@ -64,7 +64,7 @@
 							<p class="flex gap-2 heading-L items-center">
 								Q: {selectedTranslation?.question ?? '-'}
 								<a href={`/FAQs/${faqDetails.uuid}/details/edit`}>
-									<Edit stroke="#FF6A1F" />
+									<Edit stroke="#206FC9" />
 								</a>
 							</p>
 						</div>
