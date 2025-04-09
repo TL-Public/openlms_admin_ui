@@ -35,7 +35,7 @@ export let languageArray = [
 ];
 
 export const reapUrls = {
-	adminTestURL: 'http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com'
+	adminTestURL: 'https://cms-api.edu-reach.in'
 };
 
 export const urlPath = {
