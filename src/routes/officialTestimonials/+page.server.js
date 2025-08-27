@@ -12,6 +12,7 @@ let imageUrl = '';
 let payLoad;
 let videoUrl;
 let type;
+let orderNo;
 
 function preserveFormData() {
 	return async ({ request }) => {
@@ -24,6 +25,7 @@ function preserveFormData() {
 		formData.delete('imageUrl');
 		originalFormData = Object.fromEntries(formData.entries());
 		id = formData.get('uuid') ? formData.get('uuid') : '';
+		orderNo = formData.get('orderNo') ? formData.get('orderNo') : '';
 		method = formData.get('method') ? formData.get('method') : '';
 		videoUrl = formData.get('videoUrl') ? formData.get('videoUrl') : '';
 		type = formData.get('type') ? formData.get('type') : '';
@@ -53,11 +55,13 @@ function preserveFormData() {
 		if (method === 'POST') {
 			if (type === 'text') {
 				payLoad = {
+					orderNo,
 					translations
 				};
 			}
 			if (type === 'video')
 				payLoad = {
+					orderNo,
 					videoUrl: videoUrl,
 					translations
 				};
@@ -65,12 +69,15 @@ function preserveFormData() {
 		if (method === 'PUT') {
 			if (type === 'text') {
 				payLoad = {
+					orderNo,
 					image: imageUrl ? imageUrl : null,
+					
 					translations
 				};
 			}
 			if (type === 'video') {
 				payLoad = {
+					orderNo,
 					videoUrl: videoUrl,
 					image: imageUrl ? imageUrl : null,
 					translations
@@ -110,6 +117,14 @@ export const actions = {
 				});
 
 				if (!response.ok) {
+					if(response.status === 409) {
+						let data = await response?.text()
+						return fail(response.status, {
+							error: data ? data : 'Official testimonial already exists.',
+							success: false,
+							data: originalFormData
+						});
+					}
 					let { errorMsg } = getErrorMessage({
 						status: response?.status,
 						action: userActions.ADD,

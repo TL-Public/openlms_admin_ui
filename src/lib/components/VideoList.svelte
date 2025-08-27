@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { String_Constants } from '/src/config/constants.js';
-	import { languageMap } from '/src/config/constants.js';
+	import { languageMap, languageOrder } from '/src/config/constants.js';
 	import { createEventDispatcher } from 'svelte';
 	import { chapterSuccessMessage, chapterErrorMessage } from '/src/routes/courses/courseStore.js';
 	import {roles} from '$lib/config.js'
@@ -40,7 +40,6 @@
 	export let courseUuid;
 
 	let dispatch = createEventDispatcher();
-	const languageOrder = ['en', 'hi', 'ta'];
 	let moduleData = [{}];
 	let languageAvailableForVideos = [];
 	let videosDataInAscendingOrder = [];
@@ -608,7 +607,7 @@
 		name={videoToDelete?.name}
 		heading={`About to delete the video - ${videoToDelete?.name}`}
 		para={'Are you sure you want to delete the video? This action cannot be undone.'}
-		endPoint={'/apis/courses/details/${courseUuid}/chapters/${chapterUuid}/videos/'}
+		endPoint={`/apis/courses/details/${courseUuid}/chapters/${chapterData?.uuid}/videos/`}
 		queryParams={`?courseUuid=${chapterData?.courseUuid}&&chapterUuid=${chapterData?.uuid}&&videoUuid=${videoToDelete?.uuid}`}
 		{deleteTextConfirmation}
 		on:handleCancelDeletion={handleCancelVideoDeletion}

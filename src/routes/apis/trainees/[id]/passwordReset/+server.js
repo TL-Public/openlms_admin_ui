@@ -9,8 +9,9 @@ export async function POST({ request, fetch, cookies, params, url }) {
 	const authToken = cookies.get('authToken');
 	try {
 		const parsedData = await request.json();
+		// Eventhough it is written as string in swagger the API is expecting it as Number
 		const body= {
-			newPassword: JSON.stringify(parsedData)
+			newPassword: parsedData
 		}
 		// const userUuid = url.searchParams.get('userUuid');
 

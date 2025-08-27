@@ -18,7 +18,7 @@ export async function POST({ request, fetch, cookies, params, url }) {
 				'Content-Type': 'application/json',
 				Authorization: `Bearer ${authToken}`
 			},
-			body: JSON.stringify(parsedData)
+			body: parsedData
 		});
 
 		let responseData = null;

@@ -201,3 +201,46 @@ export function combineErrorMessages(...errors) {
 		.map((error, index) => `${index + 1}. ${error}`)
 		.join('\n')}`;
 }
+
+/**
+ * Extracts the YouTube video ID from a given URL.
+ * This function attempts to handle various YouTube URL formats,
+ * including standard 'watch', 'youtu.be' shortlinks, 'embed' links,
+ * and mobile links. It uses regular expressions for robustness.
+ *
+ * @param {string} url - The YouTube URL string.
+ * @returns {string|null} The extracted video ID or null if not found.
+ */
+export const extractYouTubeVideoId = (url) => {
+    if (!url || typeof url !== 'string') {
+        return null;
+    }
+
+    // Regex patterns to match various YouTube URL formats
+    const patterns = [
+        // Standard watch URL: https://www.youtube.com/watch?v=VIDEO_ID
+        /youtube\.com\/.*[?&]v=([^&]+)/,
+        // youtu.be shortlink: https://youtu.be/VIDEO_ID
+        /youtu\.be\/([^?&]+)/,
+        // Embed URL: https://www.youtube.com/embed/VIDEO_ID
+        /youtube\.com\/embed\/([^?&]+)/,
+        // Old-style URL: https://www.youtube.com/v/VIDEO_ID
+        /youtube\.com\/v\/([^?&]+)/,
+        // youtube.com/yts/ and similar less common paths (e.g., from embeds)
+        /youtube\.com\/(?:yts|c|user)\/[^/]+\/([^?&]+)/
+    ];
+
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            // Return the matched ID, ensuring it's a valid YouTube ID length (11 chars)
+            // YouTube video IDs are typically 11 characters long
+            // if (match[1].length === 11) {
+                 return match[1];
+            // }
+        }
+    }
+
+    // If no pattern matches, return null
+    return null;
+};

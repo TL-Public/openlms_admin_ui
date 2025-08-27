@@ -458,6 +458,7 @@
 					<InputField
 						label="Mobile Number "
 						type="number"
+						min="0"
 						placeholder="Enter Mobile Number "
 						bind:value={formObject.mobileNumber1}
 						name="mobileNumber"

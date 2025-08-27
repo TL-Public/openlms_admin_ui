@@ -15,22 +15,17 @@
 	$: secondaryErrors = combineErrorMessages(coursesData?.error, rsetiData?.error);
 
 	$: if (!rsetiData?.error) {
-	rsetiList = (
-		rsetiData?.flatMap((rseti) => {
-			if (!rseti?.uuid || rseti?.uuid === '0') return [];
-			return rseti?.translations
-				.filter((translation) => translation?.languageCode === 'en')
-				.map((translation) => ({
-					name: translation?.name,
+		rsetiList =
+			rsetiData?.map((rseti) => {
+				if (!rseti?.uuid || rseti?.uuid === '0') return null;
+				const enTranslation = rseti?.translations?.find(t => t?.languageCode === 'en');
+				if (!enTranslation) return null;
+				return {
+					name: enTranslation?.name,
 					id: rseti?.uuid
-				}));
-		}) || []
-	).filter((item, index, self) =>
-		index === self.findIndex((t) => t.id === item.id)
-	);
-}
-
-
+				};
+			}).filter(Boolean) || [];
+	}
 </script>
 
 {#if secondaryErrors}

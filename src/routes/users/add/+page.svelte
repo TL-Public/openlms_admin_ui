@@ -17,16 +17,16 @@
 
 	$: if (!rsetiData?.error) {
 		rsetiData =
-			rsetiData?.flatMap((rseti) => {
-				if (!rseti?.uuid || rseti?.uuid === '0' || !rseti.translations) return []; // Return early if uuid is missing
-				return rseti?.translations
-					.filter((translation) => translation?.languageCode === 'en')
-					.map((translation) => ({
-						name: translation?.name,
-						id: rseti?.uuid,
-						stateId: rseti?.stateId
-					}));
-			}) || [];
+			rsetiData?.map((rseti) => {
+				if (!rseti?.uuid || rseti?.uuid === '0' || !rseti.translations) return null;
+				const enTranslation = rseti?.translations?.find(t => t?.languageCode === 'en');
+				if (!enTranslation) return null;
+				return {
+					name: enTranslation?.name,
+					id: rseti?.uuid,
+					stateId: rseti?.stateId
+				};
+			}).filter(Boolean) || [];
 	}
 
 	$: if (!stateData?.error) {

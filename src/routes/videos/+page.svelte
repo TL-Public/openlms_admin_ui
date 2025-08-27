@@ -1,7 +1,8 @@
 <script>
-	import { page } from '$app/stores';
-	import { String_Constants } from '/src/config/constants.js';
 	import { onMount } from 'svelte';
+	import { userDetails } from '/src/routes/store.js';
+	import { moduleNames, actionNames } from '$lib/data.js';
+	import { checkActionPermission } from '$lib/utils/helper.js';
 	import Filters from '$lib/states/statesListing/Filters.svelte';
 	import VideoListingOverview from '$lib/videos/videoListing/VideoListingOverview.svelte';
 	import BreadCrumbs from '$lib/components/BreadCrumbs.svelte';
@@ -10,157 +11,124 @@
 	import ErrorMessageComponent from '$lib/components/ErrorMessage.svelte';
 	import VideoPodSkeleton from '$lib/components/VideoPodSkeleton.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { String_Constants } from '/src/config/constants.js';
 
 	export let data;
 
-	let videoList = [];
 	let { rsetiData, stateData, coursesData } = data;
 	let rsetiFilterValue = String_Constants.ALL_RSETIS;
 	let stateFilterValue = String_Constants.ALL_STATES;
-	let currentPage = 0;
-	const itemsPerPage = 20;
-	let totalPages = 0;
 	let errorMessage = '';
-	let remainingVideosCount = 0;
-	let allVideosLoaded = false;
-	let hideButton = false;
-	let isSubmitting = false;
 	let noVideos = false;
 	let videosResult = false;
-	let loadRemainingVideos = false;
 	let filterOptions = [];
 	let dummyVideoPodDetails = new Array(4);
 	let loadingInVideos = true;
 	let coursesList;
 	let totalVideos;
 	let languageCounts = [];
+	let allLanguages = [];
 
-	$: if (!coursesData?.error) {
-		coursesList =
-			coursesData?.flatMap((course) => {
-				if (!course.uuid || !course.translations) return []; // Return early if uuid is missing
-				return course.translations
-					.filter((translation) => translation?.languageCode === 'en')
-					.map((translation) => ({
-						name: translation?.title,
-						id: course?.uuid,
-						courseCode: course?.courseCode,
-						videos: course?.videos,
-						chapters: course?.chapters
-					}));
-			}) || [];
+	let permissionsObject = {
+		allowVideoBulkUpload: false,
+		allowVideoEdit: false,
+		allowVideoDeletion: false
+	};
+
+	$: if (coursesData && !coursesData?.error) {
+		coursesList = coursesData?.flatMap((course) => {
+			if (!course.uuid || !course.translations) return [];
+			return course.translations
+				.filter((translation) => translation?.languageCode === 'en')
+				.map((translation) => ({
+					name: translation?.title,
+					id: course?.uuid,
+					courseCode: course?.courseCode,
+					videos: course?.videos,
+					chapters: course?.chapters
+				}));
+		}) || [];
 	}
 
-	$: {
-		if (coursesList) {
-			filterOptions = [
-				{
-					filterName: 'Course',
-					filterValue: coursesList
-				}
-			];
-		}
+	$: if (coursesList) {
+		filterOptions = [
+			{
+				filterName: 'Course',
+				filterValue: coursesList
+			}
+		];
 	}
 
-	async function handleFilter(event) {
-		// extracting the filter values from the event
+	function handleFilter(event) {
 		let stateFilter = event.detail.stateFilter;
 		let rsetiFilter = event.detail.rsetiFilter;
-
-		let courses = [];
-		// The filter logic is not finalised, the code will be added accordingly
-		// 	if (rsetiFilter === String_Constants.ALL_COURSES) {
-		// 		courses=coursesData;
-		// 	} else {
-		// 	loading = false;
-		// }
+		// Filter logic implementation
 	}
 
-	// Fetch videos from the API with error handling
-	async function fetchVideos() {
-		hideButton = false;
+	async function fetchInitialData() {
 		errorMessage = '';
-		isSubmitting = true;
 		noVideos = false;
 		videosResult = false;
 		loadingInVideos = true;
 
 		try {
-			const response = await fetch(`/apis/videos?page=${currentPage}&size=${itemsPerPage}`);
+			const response = await fetch(`/apis/videos?page=0&size=1`);
 			if (!response?.ok) {
-				throw new Error('Error fetching videos');
+				throw new Error('Error fetching initial data');
 			}
 
 			const data = await response.json();
-			if (!data?.content || data?.content.length === 0) {
-				noVideos = true;
-				hideButton = true;
-				if (currentPage === 0) {
-					errorMessage = 'No videos found.';
-				}
-				return;
-			}
 
-			// Extract language counts from the API response
 			if (data.languageCounts && data.languageCounts.length > 0) {
 				languageCounts = data.languageCounts;
+				allLanguages = data.languageCounts;
 			}
-
-			// Append new videos to the existing list
-			videoList = [...videoList, ...data.content];
 
 			totalVideos = data.page.totalElements;
-			totalPages = data.page.totalPages;
-			currentPage++;
 
-			// If all pages have been fetched, hide the "Show More" button
-			if (currentPage >= totalPages) {
-				allVideosLoaded = true;
+			if (totalVideos === 0) {
+				noVideos = true;
+				errorMessage = 'No videos found.';
 			}
 		} catch (error) {
-			console.error('Error fetching videos:', error);
-
-			// If the error occurs, calculate remaining videos
-			if (currentPage > 0) {
-				loadRemainingVideos = true;
-				remainingVideosCount = Math.max(0, totalPages * itemsPerPage - videoList.length);
-			} else {
-				errorMessage = 'Failed to load videos.';
-				hideButton = true;
-			}
+			console.error('Error fetching initial data:', error);
+			errorMessage = 'Failed to load video data.';
 		} finally {
-			isSubmitting = false;
 			loadingInVideos = false;
 		}
 	}
 
-	async function fetchRemainingVideos() {
-		loadRemainingVideos = false; // Hide the retry button while fetching
-		try {
-			await fetchVideos(); // Continue from where it left off
-		} catch (error) {
-			console.error('Error fetching remaining videos:', error);
+	function roleBasedAcessSetting(user) {
+		if (!user?.role) return;
+		if (checkActionPermission(user?.role, moduleNames?.VIDEOS, actionNames?.DELETE)) {
+			permissionsObject.allowVideoDeletion = true;
+		} else {
+			permissionsObject.allowVideoDeletion = false;
+		}
+		if (checkActionPermission(user?.role, moduleNames?.VIDEOS, actionNames?.ADD)) {
+			permissionsObject.allowVideoBulkUpload = true;
+		} else {
+			permissionsObject.allowVideoBulkUpload = false;
+		}
+		if (checkActionPermission(user?.role, moduleNames?.VIDEOS, actionNames?.EDIT)) {
+			permissionsObject.allowVideoEdit = true;
+		} else {
+			permissionsObject.allowVideoEdit = false;
 		}
 	}
 
-	function handleShowMoreButton(e) {
-		videosResult = e.detail;
-	}
-
 	onMount(() => {
-		fetchVideos();
+		fetchInitialData();
+
+		const unsubscribe = userDetails?.subscribe((user) => {
+			if (user && Object.keys(user)?.length > 0) {
+				roleBasedAcessSetting(user);
+			}
+		});
+
+		return () => unsubscribe();
 	});
 </script>
-
-<!-- <div class="mt-4 mb-4">
-	<Filters
-		on:handleFilters={handleFilter}
-		bind:rsetiFilterValue
-		bind:stateFilterValue
-		rsetiFilterOptionList={rsetiData}
-		stateFilterOptionList={stateData}
-	/>
-</div> -->
 
 <h1 class="mb-4 font-semibold heading-L">Videos</h1>
 <div class="mb-6">
@@ -183,47 +151,21 @@
 			<ErrorMessage error={errorMessage} />
 		{:else}
 			<VideoGrid
-				videos={videoList}
 				showModuleFilter={noVideos ? false : true}
 				searchValue=""
 				showSearchBar={noVideos ? false : true}
-				showEditIcon={true}
-				showDeleteIcon={true}
+				showEditIcon={permissionsObject?.allowVideoEdit}
+				showDeleteIcon={permissionsObject?.allowVideoDeletion}
+				allowBulkUpload={permissionsObject?.allowVideoBulkUpload}
 				totalVideos={totalVideos}
-				{filterOptions}
-				{languageCounts}
-				on:handleShowMoreButton={handleShowMoreButton}
+				filterOptions={filterOptions}
+				languageCounts={languageCounts}
+				allLanguages={allLanguages}
 			/>
 		{/if}
 	</div>
 
-	<!-- Show More Button -->
-	{#if !videosResult}
-		{#if !allVideosLoaded && !hideButton}
-			<div
-				class="flex justify-center m-8 {loadRemainingVideos && remainingVideosCount > 0
-					? 'mb-2'
-					: 'mb-8'}"
-			>
-				<Button disabled={isSubmitting} on:click={fetchVideos}>Show More</Button>
-			</div>
-		{:else if allVideosLoaded && !errorMessage}
-			<div class="flex justify-center mb-8 text-sm">
-				<p class="text-darkGray">All videos have been fetched.</p>
-			</div>
-		{/if}
-	{/if}
-
 	{#if noVideos}
 		<ErrorMessageComponent />
-	{/if}
-
-	{#if loadRemainingVideos && remainingVideosCount > 0}
-		<p class="text-sm text-center mb-4">
-			{remainingVideosCount} videos couldn't be loaded.
-			<a class=" text-sm text-blue-500 rounded underline" on:click={fetchRemainingVideos}>
-				Click here
-			</a>to load remaining videos.
-		</p>
 	{/if}
 </div>

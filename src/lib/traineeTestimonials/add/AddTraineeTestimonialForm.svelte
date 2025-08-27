@@ -10,6 +10,7 @@
 	import ReviewForm from '$lib/components/ReviewForm.svelte';
 	import DropDown from '$lib/components/DropDown.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import SearchableComboBox from '$lib/components/SearchableComboBox.svelte';
 
 	import MultiStepProgressComponent from '$lib/components/MultiStepProgressComponent.svelte';
 	import { handleRedirection } from '$lib/utils/helper.js';
@@ -116,11 +117,11 @@
 				if (result.type == 'success') {
 					if (method === 'POST') {
 						goto(`/traineeTestimonials`);
-						message.set(`Successfully added trainee testiomonial of "${formObject?.nameEn}"!`);
+						message.set(`Successfully added trainee testiomonial of "${formObject?.nameEn}".`);
 					}
 					if (method === 'PUT') {
 						goto(`/traineeTestimonials`);
-						message.set(`Successfully edited trainee testiomonial of "${formObject?.nameEn}"!`);
+						message.set(`Successfully edited trainee testiomonial of "${formObject?.nameEn}".`);
 					}
 				}
 
@@ -151,6 +152,11 @@
 		saved = false;
 		currentStep = 1;
 		formObject = formObject;
+	}
+
+	function handleCourseDropdown(e){
+		selectedCourseUuid = e.detail.selectedItemId;
+		selectedCourse = e.detail.selectedItemName;
 	}
 
 	onDestroy(()=>{
@@ -186,7 +192,7 @@
 
 				<!-- First Row -->
 				<div class="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-20 mb-4">
-					<DropDown
+					<!-- <DropDown
 						on:handleCancelSelection={handleCancelSelectionInDropDown}
 						bind:selectedItemName={selectedCourse}
 						bind:selectedItemUuid={selectedCourseUuid}
@@ -195,7 +201,20 @@
 						placeholder={'Select course'}
 						type="courseList"
 						disabled={coursesList?.length === 0}
-					/>
+					/> -->
+
+						<SearchableComboBox
+						options={coursesList}
+						filterCategory="courseListing"
+						placeholder="Select a course"
+						type="courseList"
+						validationErrors={validationErrors || ''}
+						selectedItemName={selectedCourse}
+						selectedItemId={selectedCourseUuid}
+						disabled={coursesList?.length === 0}
+						on:handleDispatchFilterData={handleCancelSelectionInDropDown}
+						on:handleDispatchComboBoxData={handleCourseDropdown}
+						/>
 				</div>
 
 				<hr class="my-4 horizontal-line" />

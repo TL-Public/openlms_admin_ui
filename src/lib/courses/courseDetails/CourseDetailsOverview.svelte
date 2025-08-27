@@ -2,12 +2,14 @@
 	import AboutCourseCard from '$lib/courses/courseDetails/AboutCourseCard.svelte';
 	import { courseStats } from '$lib/data.js';
 	import IndividualStats from '$lib/components/IndividualStats.svelte';
+	import IntroVideoCard from '$lib/courses/courseDetails/IntroVideoCard.svelte';
 
 	export let courseData;
+	export let introVideos = [];
 	export let showHorizontalLine = true;
+	export let deletedIntroVideoLanguageCode = null
 
-
-
+	let introVideosCopy = introVideos
 
 </script>
 
@@ -18,7 +20,11 @@
 		{/each}
 	</div>
 	<div>
-		<AboutCourseCard courseData={courseData}/>
+		<AboutCourseCard courseData={courseData} {deletedIntroVideoLanguageCode}/>
+	</div>
+	<div>
+		<IntroVideoCard courseData={courseData} {deletedIntroVideoLanguageCode} introVideos={introVideosCopy} on:introVideoAdded={(e)=>introVideosCopy=e.detail}
+		on:introVideoDeleted={(e)=>introVideosCopy=e.detail}/>
 	</div>
 <!-- </section> -->
 

@@ -13,7 +13,10 @@ export async function DELETE({ params, cookies }) {
 				Authorization: `Bearer ${authToken}`
 			}
 		});
+
+		console.log('res', res)
 		if (!res.ok) {
+			console.log(await res?.text())
 			return json({ error: 'Failed to delete the faq category.' }, { status: res.status });
 		}
 		if (res?.status === 404) {
@@ -36,7 +39,7 @@ export async function PUT({ request, params, url, cookies }) {
 		const authToken = cookies.get('authToken');
 		const body = await request.json();
 		res = await fetch(
-			`${BASE_URL}/apis/v1/faqcategories/${id}`,
+			`http://read-admin-api-dev.ap-south-1.elasticbeanstalk.com/apis/v1/faqcategories/${id}`,
 			{
 				method: 'PUT',
 				headers: {

@@ -155,8 +155,8 @@
 				goto(`/login?redirectTo=${fromUrl}`);
 			}
 		} finally {
-			if (!resultOfApiCall?.error) return;
 			isSubmitting = false;
+			if (!resultOfApiCall?.error) return;
 			if (!errorMessage && !validationErrors) {
 				handleCancel();
 			}
@@ -218,7 +218,7 @@
 	});
 </script>
 
-<div class="relative z-10" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+<div class="relative z-[99]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
 	<div
 		class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity pointer-events-none"
 		aria-hidden="true"

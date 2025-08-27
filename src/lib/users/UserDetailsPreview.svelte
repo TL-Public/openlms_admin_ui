@@ -71,7 +71,7 @@
 	<div class=" w-full rounded-lg flex flex-col sm:flex-row text-sm gap-8">
 		<div class="flex flex-col items-center sm:items-center min-w-8 lg:w-1/4">
 			<img
-				class="w-32 rounded-lg border object-cover mb-4"
+				class="w-40 h-auto max-h-40 rounded-lg border object-cover mb-4"
 				src={imageUrl ? imageUrl : '/placeholderUserImage.png'}
 				alt="uploaded user profile"
 			/>
@@ -93,7 +93,7 @@
 			<p><span class="label">Role: </span>{roleName}</p>
 
 
-			<div class="my-4">
+		
 				{#if usersWithStateId.includes(userData.roleId)}
 					<p>
 						<span class="label">State : </span>{stateName}
@@ -104,9 +104,8 @@
 						<span class="label">RSETI : </span>{rsetiName}
 					</p>
 				{/if}
-			</div>
 
-			{#if [Number(roleIds?.SUPER_ADMIN), Number(roleIds?.NAR_ADMIN), Number(roleIds?.NAR_STAFF)].includes(Number($userDetails?.role))}
+			{#if [Number(roleIds?.SUPER_ADMIN), Number(roleIds?.NAR_ADMIN), Number(roleIds?.NAR_STAFF)].includes(Number($userDetails?.role))&&enableEdit}
 			<div class="text-sm mb-4 text-blue-500 underline hover:cursor-pointer hover:text-blue-600" on:click={handlePasswordReset}> Reset Password</div>
 			{/if}
 			<hr class="horizontal-line my-8" />
@@ -133,7 +132,7 @@
 {#if showPasswordResetPopup}
 	<PasswordResetPopUp 
 	userUuid={userData?.uuid}
-    endPoint={`/apis/users/${$page.params.id}/passwordReset?userUuid=${userData?.uuid}`}
+    endPoint={`/apis/users/${$page.params.userId}/passwordReset?userUuid=${userData?.uuid}`}
     resetOwnPassword={false}
 	userType={userTypes?.ADMIN_USER}
 	on:handleCancelSubmission={handleCancel}/>

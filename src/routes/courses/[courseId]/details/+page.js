@@ -68,9 +68,39 @@ export async function load({ parent, params, url, fetch }) {
 		}
 	};
 
+	const fetchIntroVideosOfACourse = async () => {
+		let id = params?.courseId;
+		let res;
+		try {
+			res = await fetch(`/apis/courses/details/${id}/introVideos`);
+			if (!res.ok || res.status != 200) {
+				const { errorMsg, redirectUser } = getErrorMessage({
+					status: res?.status,
+					action: userActions.DETAILS,
+					module: resourceNames.VIDEO
+				});
+
+				if (redirectUser) {
+					handleRedirection(res.status, url.pathname, url.search);
+				}
+
+				return { error: errorMsg };
+			}
+			const data = await res.json();
+			// if (data?.length === 0 || Object.keys(data)?.length === 0) {
+			// 	throw new Error('Data not found');
+			// }
+			return data
+		} catch (err) {
+			return { error: err.message, status: res?.status };
+		}
+
+	}
+
 	return {
 		courseDetailsData: await fetchDetailsOfACourse(),
-		videosData: await fetchVideosOfACourse()
+		videosData: await fetchVideosOfACourse(),
+		introVideos: await fetchIntroVideosOfACourse()
 	};
 }
 

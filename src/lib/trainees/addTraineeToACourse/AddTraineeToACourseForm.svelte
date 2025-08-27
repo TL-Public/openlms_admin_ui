@@ -219,6 +219,16 @@
 		dataToSend.enrollmentDate = formatDate(selectedDate);
 	}
 
+	function handleRsetiDropdown(e) {
+		selectedRsetiUuid = e.detail.selectedItemId;
+		selectedRsetiName = e.detail.selectedItemName;
+	}
+
+	function handleCourseDropdown(e) {
+		selectedCourseUuid = e.detail.selectedItemId;
+		selectedCourseName = e.detail.selectedItemName;
+	}
+
 	onDestroy(()=>{
 		showLoadingSpinner.set(false)
 	})
@@ -256,10 +266,11 @@
 				filterCategory="rsetiListing"
 				placeholder="Select an RSETI"
 				validationErrors={validationErrors.rseti ? validationMessage.rseti : ''}
-				bind:selectedItemName={selectedRsetiName}
-				bind:selectedItemId={selectedRsetiUuid}
+				selectedItemName={selectedRsetiName}
+				selectedItemId={selectedRsetiUuid}
 				disabled={method === 'PUT'}
 				on:handleDispatchFilterData={handleClearRsetiSelection}
+				on:handleDispatchComboBoxData={handleRsetiDropdown}
 			/>
 
 			<SearchableComboBox
@@ -267,10 +278,12 @@
 				filterCategory="courseListing"
 				placeholder="Select a Course"
 				validationErrors={validationErrors.course ? validationMessage.course : ''}
-				bind:selectedItemName={selectedCourseName}
-				bind:selectedItemId={selectedCourseUuid}
+				selectedItemName={selectedCourseName}
+				selectedItemId={selectedCourseUuid}
 				disabled={!selectedRsetiUuid || method === 'PUT'}
 				on:handleDispatchFilterData={handleClearCourseSelection}
+				on:handleDispatchComboBoxData={handleCourseDropdown}
+
 			/>
 		</div>
 

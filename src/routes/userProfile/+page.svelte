@@ -16,13 +16,19 @@
 
 	$: error = userData?.error ? true : false;
 	let { userData, stateData, rsetiData } = data;
-	let stateName = stateData?.find(
-		(item) => item?.extId == userData?.stateId && item?.languageCode === 'en'
-	)?.name;
+	let stateName=''
+	let rsetiName=''
+	
+	$:if(!stateData?.error && stateData?.length > 0) {
+		stateName = stateData
+			?.find((item) => Number(item?.extId) === Number(userData?.stateId) && item.languageCode === 'en')?.name;
+		}
 
-	let rsetiName = rsetiData
+	$:if(!rsetiData?.error && rsetiData?.length > 0) {
+		rsetiName = rsetiData
 		?.find((item) => item?.uuid === userData?.rsetiId)
 		?.translations?.find((t) => t?.languageCode === 'en')?.name;
+		}
 
 	let showEditIcon = false;
 	let showPasswordResetPopup = false;

@@ -2,7 +2,7 @@
 	export let steps = [];
 	export let currentStep = 1;
 	export let primaryColor = 'bg-primary';
-	export let activeColor = 'bg-secondary';
+	export let activeColor = 'bg-accent';
 	export let textColor = 'text-darkGray';
 
 	$: stepsArray = steps.map((step, index) => ({

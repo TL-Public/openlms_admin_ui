@@ -89,7 +89,7 @@
 	class="flex flex-col text-sm p-6 rounded-lg gap-4 text-darkGray border border-gray-50 bg-white leading-relaxed"
 >
 	<div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-		<div class="border-secondary border rounded-full p-2 flex items-center justify-center">
+		<div class="border-accent border rounded-full p-2 flex items-center justify-center">
 			<img
 				src="/learningCentersIcon.svg"
 				alt="Learning Center"

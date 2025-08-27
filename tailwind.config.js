@@ -9,11 +9,14 @@ export default {
 			screens: {
 				'bp-420px': '420px',
 				'bp-900px': '900px'
-				
 			},
 			colors: {
 				primary: '#143164',
-				"primary-hover": '#435A83',
+				'primary-hover': '#435A83',
+				accent: '#206FC9', //or / #206FC9 /#FF6A1F
+				'accent-hover': '#D2E2F4', //#D2E2F4 or #FFC3A5
+				'accent-light': '#FFE1D2',
+				'accent-dark': '#f97316',
 				secondary: '#206FC9',
 				yellow: '#FFBB12',
 				orange: {

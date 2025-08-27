@@ -6,7 +6,7 @@ export async function POST({ params, url, request, cookies }) {
 	let courseUuid = url.searchParams.get('courseUuid');
 	let chapterUuid = url.searchParams.get('chapterUuid');
 	const body = await request.json();
-	console.log('body', JSON.stringify(body))
+
 	let res;
 	try {
 		res = await fetch(`${BASE_URL}/apis/v1/courses/${courseUuid}/chapters/${chapterUuid}/videos`, {
@@ -17,8 +17,6 @@ export async function POST({ params, url, request, cookies }) {
 			},
 			body: JSON.stringify(body)
 		});
-
-		console.log('res', res)
 
 		if (!res?.ok) {
 			return json({ status: res.status, error: 'Failed to add video' }, { status: res.status });

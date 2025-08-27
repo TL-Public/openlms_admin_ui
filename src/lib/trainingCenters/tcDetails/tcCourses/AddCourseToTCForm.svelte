@@ -14,6 +14,7 @@
 	import {showLoadingSpinner} from '/src/routes/store.js'
 	import { onDestroy } from 'svelte';
 	import { error } from '@sveltejs/kit';
+	import SearchableComboBox from '$lib/components/SearchableComboBox.svelte';
 
 
 	export let data;
@@ -61,7 +62,7 @@
 	}
 
 	function handleDropDown(e) {
-		selectedCourse.uuid = e.detail.selectedItemUuid;
+		selectedCourse.uuid = e.detail.selectedItemId;
 		selectedCourse.name = e.detail.selectedItemName;
 	}
 	function handleClearCourseSelection(e) {
@@ -202,11 +203,11 @@
 			</h1>
 			<hr class="horizontal-line mt-1 mb-4" />
 
-			<div class=" space-y-4">
-				<h2 class="mb-4 heading-L">
+			<div class=" flex flex-col gap-4">
+				<h2 class=" heading-L">
 					Training Center: {tcData?.tcName}
 				</h2>
-				<DropDown
+				<!-- <DropDown
 					bind:selectedItemId={selectedCourse.uuid}
 					bind:selectedItemName={selectedCourse.name}
 					on:handleDispatchFilterData={handleDropDown}
@@ -215,7 +216,19 @@
 					type={'categoryDropdown'}
 					title={'Select Course'}
 					validationErrors={validationErrors.course ? validationMessage.course : ''}
-				/>
+				/> -->
+	
+					<SearchableComboBox
+							options={courseOptionsList}
+							label={'Select Course'}
+							filterCategory={'courseListing'}
+							placeholder={'Select course'}
+							selectedItemId={selectedCourse.uuid}
+							selectedItemName={selectedCourse.name}
+							on:handleDispatchComboBoxData={handleDropDown}
+							on:handleDispatchFilterData={handleClearCourseSelection}
+							validationErrors={validationErrors.course ? validationMessage.course : ''}
+						/>
 
 				<InputField
 					label={'Start Date'}

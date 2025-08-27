@@ -17,6 +17,8 @@ export async function PUT({ request, params, url, cookies }) {
 			body: JSON.stringify(body)
 		});
 
+		console.log('res', res)
+
 		if (!res?.ok) {
 			return json({ status: res.status, error: 'Failed to edit chapter' }, { status: res.status });
 		}
@@ -44,6 +46,8 @@ export async function DELETE({ params, url, cookies }) {
 				Authorization: `Bearer ${authToken}`
 			}
 		});
+
+		console.log('res', res)
 
 		if (!res.ok) {
 			return json({ error: 'Failed to delete chapter.' }, { status: res.status });

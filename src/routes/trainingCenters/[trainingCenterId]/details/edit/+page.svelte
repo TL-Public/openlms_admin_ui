@@ -32,8 +32,10 @@
 						? bankData?.find((bank) => bank.uuid === formData.bankId)?.name || ''
 						: '';
 				let stateTitle =
-					formData.stateId && !stateData.error
-						? stateData?.find((state) => state.extId === formData.stateId)?.name || ''
+					formData?.stateId && !stateData.error
+						? stateData?.find(
+								(state) => state?.extId === formData.stateId && state?.languageCode === 'en'
+							)?.name || ''
 						: '';
 
 				tcObject = {

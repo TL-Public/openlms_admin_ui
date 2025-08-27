@@ -9,11 +9,16 @@
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import EdureachLogo from '$lib/svgComponents/edureach/EdureachLogo.svelte';
 
 	let redirectTo = $page.url.searchParams.get('redirectTo');
 	let loggingIn = false;
 
 	export let form;
+	export let data;
+
+	let {openLMS} = data;
+	let authToken = data.authToken;
 	// extract the form details
 	let error = form?.error;
 	let formLoginDetails = form?.loginDetails;
@@ -52,36 +57,43 @@
 
 <div class="w-full flex flex-col lg:flex-row min-h-screen">
 	<!-- Left side text and decoration -->
-	<div class="w-full lg:w-1/2 bg-white80 relative hidden lg:flex lg:flex-col">
+	<div class="w-full lg:w-1/2 {openLMS ? 'bg-blue-10': 'bg-ivory'} relative hidden lg:flex lg:flex-col">
 		<div class="px-36 flex flex-col flex-1 justify-center">
 			<h2 class="text-4xl font-extrabold text-primary mb-4 relative">
-				<!-- <img
+				{#if !openLMS}
+				<img
 					src="/RSETI-text-decoration.svg"
 					alt=""
 					class="rotate-[270deg] absolute -top-7 -left-7"
-				/>  -->
-				Infinite learning enhanced by diverse digital solutions
+				/>
+				{/if} Infinite learning enhanced by diverse digital solutions
 			</h2>
 			<p class="text-primary">
 				Our platform seamlessly blends traditional knowledge with innovative technology, creating a
 				unique and effective educational experience for all.
 			</p>
 		</div>
-		<!-- <LineDrawing /> -->
+		{#if !openLMS}
+		<LineDrawing />
+		{/if}
 	</div>
 	<!-- Login Forms -->
 	<div
 		class="flex flex-col justify-center items-center lg:justify-start flex-1 px-6 lg:px-36 py-12 lg:py-24 bg-offwhite min-h-screen lg:min-h-0"
 	>
 		<div class="w-full max-w-md lg:max-w-none">
-			<div class="mb-4 flex flex-col items-center justify-center">
-				<span class="sr-only">Edu-reach Logo</span>
-				<h2 class="text-center">
-					<ReapLogo addClass="w-40 h-28 lg:w-56 lg:h-40" />
+			<div class="mb-4">
+				<span class="sr-only"> Logo</span>
+				<h2 class="flex items-center justify-center">
+					{#if !openLMS}
+					<ReapLogo addClass="w-40 h-28 lg:w-56 lg:h-40 mx-auto" />
+					{:else}
+						<EdureachLogo />
+					{/if}
 				</h2>
 				<h2 class="text-2xl text-center text-primary font-bold leading-[3rem]">Login</h2>
 			</div>
-			{#if redirectTo && redirectTo?.length > 0}
+			{#if redirectTo && redirectTo?.length > 0 && authToken}
 				<p class="text-sm text-center text-red-600 my-4 sm:my-8">
 					Your session expired ! Please relogin.
 				</p>

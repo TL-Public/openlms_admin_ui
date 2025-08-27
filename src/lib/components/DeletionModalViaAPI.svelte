@@ -43,6 +43,8 @@
 			isSubmitting = true;
 			response = await fetch(`${endPoint}${id}${queryParams}`, { method: 'DELETE' });
 
+			console.log('response', response)
+
 
 			// Handle cases where the response is 204 (No Content)
 			if (!response.ok) {
@@ -102,7 +104,7 @@
 	});
 </script>
 
-<div class="relative z-10" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+<div class="relative z-[90]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
 	<div
 		class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity pointer-events-none"
 		aria-hidden="true"
@@ -113,7 +115,7 @@
 		<div class="flex min-h-full justify-center p-4 text-center items-center sm:p-0">
 			<div
 				class="relative transform rounded-lg bg-gray-10 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 max-h-[90vh] overflow-auto"
-				on:click|stopPropagation
+				
 			>
 				<div class="pb-2">
 					{#if isSubmitting}

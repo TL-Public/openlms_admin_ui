@@ -65,6 +65,7 @@
 			const testimonialData = {
 				uuid: testimonial?.uuid,
 				name: translation?.name,
+				orderNo: testimonial?.orderNo,
 				designation: translation?.designation,
 				testimonialText: translation?.testimonialText,
 				videoUrl: testimonial?.videoUrl,
@@ -128,6 +129,10 @@
 		{
 			key: 'type',
 			name: 'Testimonial Type'
+		},
+		{
+			key: 'orderNo',
+			name: 'Priority Number'
 		},
 		{
 			key: 'textOrUrlValue',

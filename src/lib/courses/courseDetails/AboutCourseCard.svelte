@@ -3,15 +3,17 @@
 	import RadioButton from '$lib/components/RadioButton.svelte';
 	import { getCategoryName } from '$lib/utils/helper.js';
 	import Edit from '$lib/svgComponents/Edit.svelte';
-	import {roles} from '$lib/config.js'
-	import {userDetails} from '/src/routes/store.js'
+	import { roles } from '$lib/config.js';
+	import { userDetails } from '/src/routes/store.js';
 	import { onMount } from 'svelte';
-	import { checkActionPermission } from '$lib/utils/helper.js'
-	import {moduleNames, actionNames} from '$lib/data.js'
+	import { checkActionPermission, extractYouTubeVideoId } from '$lib/utils/helper.js';
+	import { moduleNames, actionNames } from '$lib/data.js';
 
 	export let courseData = {};
 
-	let showEditIcon=false;
+	export let deletedIntroVideoLanguageCode = null;
+
+	let showEditIcon = false;
 
 	$: categoryName = getCategoryName(courseData?.category);
 	// Hardcoded for testing
@@ -24,6 +26,8 @@
 	// Course object with only the UUID to send to the edit page
 	let course = { uuid: courseData?.uuid, method: 'PUT' };
 
+	let videoId = selectedTranslation?.aboutVideoUrl || 'null';
+
 	// Handle language selection from the radio button
 	function handleLanguageSelectionFromRadioButton(e) {
 		selectedLanguage = e.detail;
@@ -34,23 +38,34 @@
 	function updateSelectedTranslation() {
 		selectedTranslation =
 			courseData?.translations?.find((t) => t?.languageCode === selectedLanguage) || {};
+		// Set videoId here for initial mount and language change
+		videoId = selectedTranslation?.aboutVideoUrl || 'null';
 	}
 
 	// Initialize the selected translation
 	$: courseData && updateSelectedTranslation();
 
-
-	function roleBasedAcessSetting(){
-		if(!$userDetails?.role) return
-		if(checkActionPermission($userDetails?.role, moduleNames.COURSES, actionNames?.EDIT)){
-			showEditIcon=true	
+	// Reactively update videoId if intro video is removed
+	$: if (deletedIntroVideoLanguageCode) {
+		const isAllVideosRemoved = deletedIntroVideoLanguageCode?.toLowerCase() === 'all';
+		const isCurrentLangRemoved = deletedIntroVideoLanguageCode?.toLowerCase() === selectedLanguage?.toLowerCase();
+		if (isAllVideosRemoved || isCurrentLangRemoved) {
+			videoId = 'null';
 		} else {
-			showEditIcon=false	
-
+			videoId = selectedTranslation?.aboutVideoUrl || 'null';
 		}
-		}
+	}
 
-		onMount(() => {
+	function roleBasedAcessSetting() {
+		if (!$userDetails?.role) return;
+		if (checkActionPermission($userDetails?.role, moduleNames.COURSES, actionNames?.EDIT)) {
+			showEditIcon = true;
+		} else {
+			showEditIcon = false;
+		}
+	}
+
+	onMount(() => {
 		const unsubscribe = userDetails?.subscribe((user) => {
 			if (user && Object.keys(user)?.length > 0) {
 				roleBasedAcessSetting(user);
@@ -76,10 +91,10 @@
 							{selectedTranslation?.title ? selectedTranslation?.title : 'No Title Found'}
 						</div>
 						{#if showEditIcon}
-						<a href={`/courses/${courseData?.uuid}/details/edit`}>
-							<!-- <img src="/edit.svg" alt="Edit" class="w-5 h-5" /> -->
-							<Edit stroke="#206FC9" />
-						</a>
+							<a href={`/courses/${courseData?.uuid}/details/edit`}>
+								<!-- <img src="/edit.svg" alt="Edit" class="w-5 h-5" /> -->
+								<Edit stroke="#206FC9" />
+							</a>
 						{/if}
 					</div>
 					<!-- <div class="mb-4">
@@ -99,7 +114,7 @@
 								? `${courseData?.imageUrl}?t=${Date.now()}`
 								: '/image-preview-icon.jpg'}
 							alt="Course Image"
-							class=" shadow-md w-40 object-contain mb-4"
+							class=" shadow-md w-40 max-h-40 h-auto object-contain mb-4"
 						/>
 						<!-- Language Selector -->
 						<RadioButton
@@ -137,17 +152,12 @@
 				</div>
 			</div>
 		</div>
-
 		<!-- Video Player Section (1/3rd Width) -->
-		<div class="flex flex-col bp-900px:w-1/2">
+		<!-- <div class="flex flex-col bp-900px:w-1/2">
 			<!-- Video Player -->
-			<div class="aspect-video w-full shadow-lg rounded-lg overflow-hidden">
-				<VideoPlayer
-					videoId={selectedTranslation.aboutVideoExtid
-						? selectedTranslation.aboutVideoExtid
-						: 'null'}
-				/>
-			</div>
-		</div>
+			<!-- <div class="aspect-video w-full rounded-lg overflow-hidden">
+				<VideoPlayer videoId={extractYouTubeVideoId(videoId)}  />
+			</div> -->
+		<!-- </div> --> 
 	</div>
 </div>
