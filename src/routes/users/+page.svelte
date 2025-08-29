@@ -279,7 +279,7 @@
 	/>
 	{#if permissionsObject?.allowAddition}
 		<div class="flex gap-2 ml-auto">
-			<Button btnType="secondary" on:click={handleBulkUploadUsers}>Bulk Upload</Button>
+			<!-- <Button btnType="secondary" on:click={handleBulkUploadUsers}>Bulk Upload</Button> -->
 			<Button on:click={handleAddUser}>+ User</Button>
 		</div>
 	{/if}

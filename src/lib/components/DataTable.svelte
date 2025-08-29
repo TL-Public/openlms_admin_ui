@@ -1,14 +1,20 @@
 <script>
-	import Select from '$lib/components/Select.svelte';
-	import { error } from '@sveltejs/kit';
-	import GoogleMatrialIcon from './GoogleMatrialIcon.svelte';
 	import { createEventDispatcher } from 'svelte';
+	import { error } from '@sveltejs/kit';
+	import Select from '$lib/components/Select.svelte';
+	import GoogleMatrialIcon from './GoogleMatrialIcon.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	export let showPagination = true;
 	export let tableStyle = 'primary';
 	export let notFoundMessage;
 	export let searchParameter = null;
+	export let customRenderers = {};
+
+	export let serverSidePagination = false;
+	export let apiCurrentPage = 1;
+	export let apiTotalItems = 0;
+	export let apiPageSize = 10;
 
 	//------------ Datatable Component Usage---------------------------
 	// The datatable component handles searching, sorting and pagination
@@ -73,7 +79,7 @@
 		if (totalSpecifiedWidth > 100) {
 			// Scale down each specified width proportionally
 			const scalingFactor = 100 / totalSpecifiedWidth;
-			elements = elements.map((element) => ({
+			elements = elements?.map((element) => ({
 				...element,
 				width: element.width ? `${parseFloat(element.width) * scalingFactor}%` : null
 			}));
@@ -97,7 +103,7 @@
 	const dispatch = createEventDispatcher();
 	function handleActionDispatch(actionName, actionData, viewModal) {
 
-		tableDataRender = tableDataRender.map((data) => ({ ...data, highlighted: false }));
+		tableDataRender = tableDataRender?.map((data) => ({ ...data, highlighted: false }));
 		if (dataToHighlight.enabled) {
 			const clickedValue = actionData[dataToHighlight.uniqueProperty] || '';
 			dataToHighlight = { ...dataToHighlight, value: clickedValue };
@@ -129,47 +135,79 @@
 	let tableDataRender = [];
 
 	// -------Extracting Headers for table from the keys of the first element in the array---------------
-	let tableHeaders = Object.keys(tableData[0]);
+	// let tableHeaders = Object.keys(tableData[0]);
 
 	// ------------- Search Function -------------
-	// searchParameter expects data as an array of string, if the strings are invalid the search is done on the first two columns. If anyone of the string in invalid then search based on the remaining valid strings
-function updateTableDataRender(searchValue) {
-    const sanitizedSearchValue = searchValue?.toLocaleLowerCase().trim();
+	// searchParameter expects data as an array of string, if the strings are invalid the search is done on the first two columns. If anyone of the string in invalid then search based on the first two columns. If anyone of the string in invalid then search based on the remaining valid strings
+	function updateTableDataRender(searchValue) {
+		// NEW: Skip local filtering for server-side pagination
+		if (serverSidePagination) {
+			tableDataRender = [...tableData];
+			return;
+		}
 
-    tableDataRender = tableData?.filter((object) => {
-        if (searchParameter && Array.isArray(searchParameter)) {
-            // Filter out invalid parameters
-            const validParameters = searchParameter?.filter((param) =>
-                tableHeadersDisplay?.some(
-                    (header) => header.key?.toLowerCase().trim() === param?.toLowerCase().trim()
-                )
-            );
+		const sanitizedSearchValue = searchValue?.toLocaleLowerCase().trim();
+		if (!sanitizedSearchValue) {
+			tableDataRender = [...tableData];
+			currentPage = 1;
+			return;
+		}
 
-            if (validParameters.length > 0) {
-                // Search based on each valid parameter
-                return validParameters.some((param) => {
-                    const fieldValue = object[param]?.toString()?.toLocaleLowerCase();
-                    return fieldValue?.includes(sanitizedSearchValue);
-                });
-            } else {
-                console.warn(`All search parameters in "${searchParameter}" are invalid. Falling back to default search.`);
-            }
-        }
+		tableDataRender = tableData?.filter((object) => {
+			// First check if we should use specific search parameters
+			if (searchParameter && Array.isArray(searchParameter)) {
+				// Filter out invalid parameters
+				const validParameters = searchParameter?.filter((param) =>
+					tableHeadersDisplay?.some(
+						(header) => header.key?.toLowerCase().trim() === param?.toLowerCase().trim()
+					)
+				);
 
-        // Fallback to the first and second table headers
-        const firstField = tableHeadersDisplay[0]?.key;
-        const secondField = tableHeadersDisplay[1]?.key;
+				if (validParameters.length > 0) {
+					// Search based on each valid parameter
+					return validParameters?.some((param) => {
+						// Check if there's a custom renderer for this parameter
+						if (customRenderers && customRenderers[param]) {
+							// Get the rendered HTML content
+							const renderedContent = customRenderers[param](object);
+							// Create a temporary div to parse the HTML and extract text
+							const tempDiv = document.createElement('div');
+							tempDiv.innerHTML = renderedContent;
+							const textContent = tempDiv.textContent || tempDiv.innerText || '';
+							// Search in the text content
+							return textContent?.toLowerCase().includes(sanitizedSearchValue);
+						} else {
+							// Regular search in the raw data
+							const fieldValue = object[param]?.toString()?.toLocaleLowerCase() || '';
+							return fieldValue?.includes(sanitizedSearchValue);
+						}
+					});
+				}
+			}
 
-        const firstValue = object[firstField]?.toString()?.toLocaleLowerCase();
-        const secondValue = object[secondField]?.toString()?.toLocaleLowerCase();
+			// Fallback to searching in all displayed columns
+			return tableHeadersDisplay?.some(header => {
+				const key = header.key;
+				// Check if there's a custom renderer for this column
+				if (customRenderers && customRenderers[key]) {
+					// Get the rendered HTML content
+					const renderedContent = customRenderers[key](object);
+					// Create a temporary div to parse the HTML and extract text
+					const tempDiv = document.createElement('div');
+					tempDiv.innerHTML = renderedContent;
+					const textContent = tempDiv.textContent || tempDiv.innerText || '';
+					// Search in the text content
+					return textContent?.toLowerCase().includes(sanitizedSearchValue);
+				} else {
+					// Regular search in the raw data
+					const fieldValue = object[key]?.toString()?.toLocaleLowerCase() || '';
+					return fieldValue?.includes(sanitizedSearchValue);
+				}
+			});
+		});
 
-        return (
-            firstValue?.includes(sanitizedSearchValue) || secondValue?.includes(sanitizedSearchValue)
-        );
-    });
-
-    currentPage = 1;
-}
+		currentPage = 1;
+	}
 
 	// updates the content of the table each time the search value changes
 	// NOTE: We also pass the tableData so that the rendered table gets updated when filters are applied
@@ -185,6 +223,9 @@ function updateTableDataRender(searchValue) {
 
 
 	function handleCreateSortAccordingToObject(headerData) {
+		if(serverSidePagination) {
+			return;
+		}
 		// determine sorting order
 		// We have 3 states for ordering
 		// Default is the API response order other two are ascending and descending
@@ -220,6 +261,11 @@ function updateTableDataRender(searchValue) {
 	}
 
 	function handleSorting(sortAccordingTo) {
+		// NEW: Skip local sorting for server-side pagination
+		if (serverSidePagination) {
+			return;
+		}
+
 		// if sorting order is null revert back to the defaut order of element
 		if (sortAccordingTo.sortingOrder === null) {
 			updateTableDataRender(searchValue);
@@ -231,8 +277,8 @@ function updateTableDataRender(searchValue) {
 		if (sortAccordingTo.entityType === 'string') {
 			if (sortAccordingTo.sortingOrder == 'ascending') {
 				tableDataRender = tableDataRender.sort((a, b) => {
-					const entityA = a[sortAccordingTo.sortKey].toUpperCase() || ''; // ignore upper and lowercase
-					const entityB = b[sortAccordingTo.sortKey].toUpperCase() || ''; // ignore upper and lowercase
+					const entityA = a[sortAccordingTo.sortKey]?.toUpperCase() || ''; // ignore upper and lowercase
+					const entityB = b[sortAccordingTo.sortKey]?.toUpperCase() || ''; // ignore upper and lowercase
 					if (entityA < entityB) {
 						return 1;
 					}
@@ -246,8 +292,8 @@ function updateTableDataRender(searchValue) {
 			}
 			if (sortAccordingTo.sortingOrder == 'descending') {
 				tableDataRender = tableDataRender.sort((a, b) => {
-					const entityA = a[sortAccordingTo.sortKey].toUpperCase() || ''; // ignore upper and lowercase
-					const entityB = b[sortAccordingTo.sortKey].toUpperCase() || ''; // ignore upper and lowercase
+					const entityA = a[sortAccordingTo.sortKey]?.toUpperCase() || ''; // ignore upper and lowercase
+					const entityB = b[sortAccordingTo.sortKey]?.toUpperCase() || ''; // ignore upper and lowercase
 					if (entityA < entityB) {
 						return -1;
 					}
@@ -263,12 +309,12 @@ function updateTableDataRender(searchValue) {
 
 		if (sortAccordingTo.entityType === 'number') {
 			if (sortAccordingTo.sortingOrder == 'ascending') {
-				tableDataRender = tableDataRender.sort(
+				tableDataRender = tableDataRender?.sort(
 					(a, b) => a[sortAccordingTo.sortKey] - b[sortAccordingTo.sortKey]
 				);
 			}
 			if (sortAccordingTo.sortingOrder == 'descending') {
-				tableDataRender = tableDataRender.sort(
+				tableDataRender = tableDataRender?.sort(
 					(a, b) => b[sortAccordingTo.sortKey] - a[sortAccordingTo.sortKey]
 				);
 			}
@@ -279,12 +325,12 @@ function updateTableDataRender(searchValue) {
 			tableData[0][sortAccordingTo.sortKey] instanceof Date
 		) {
 			if (sortAccordingTo.sortingOrder == 'ascending') {
-				tableDataRender = tableDataRender.sort(
+				tableDataRender = tableDataRender?.sort(
 					(a, b) => a[sortAccordingTo.sortKey] - b[sortAccordingTo.sortKey]
 				);
 			}
 			if (sortAccordingTo.sortingOrder == 'descending') {
-				tableDataRender = tableDataRender.sort(
+				tableDataRender = tableDataRender?.sort(
 					(a, b) => b[sortAccordingTo.sortKey] - a[sortAccordingTo.sortKey]
 				);
 			}
@@ -322,9 +368,15 @@ function updateTableDataRender(searchValue) {
 		let change = numberOfPages - currentPage > sizeOfBar;
 	}
 
-	$: numberOfEntries = tableDataRender?.length;
-	$: numberOfPages = calculateNumberOfPages(numberOfEntries, entriesPerPage);
+	// NEW: Use server-side values when available
+	let numberOfEntries = 0;
+	$: numberOfEntries = serverSidePagination ? apiTotalItems : tableDataRender?.length;
+	let numberOfPages = 0;
+	$: numberOfPages = serverSidePagination 
+		? calculateNumberOfPages(apiTotalItems, apiPageSize)
+		: calculateNumberOfPages(tableDataRender?.length, entriesPerPage);
 
+	let pageinationDisplayArray = [];
 	$: pageinationDisplayArray = updatepageinationDisplayArray(numberOfPages);
 
 	function updatepageinationDisplayArray(numberOfPages) {
@@ -335,26 +387,69 @@ function updateTableDataRender(searchValue) {
 		return pageinationDisplayArray;
 	}
 
+	// NEW: Use API current page when in server-side mode
 	let currentPage = 1;
-	$: currentPageData = getCurrentPageData(
-		currentPage,
-		entriesPerPage,
-		numberOfEntries,
-		tableDataRender
-	);
-	$: startingEntryIndex = currentPage * entriesPerPage - entriesPerPage;
-	$: endingEntryIndex = startingEntryIndex + currentPageData.length;
+	$: if (serverSidePagination) {
+		currentPage = apiCurrentPage;
+	}
 
+	let currentPageData = [];
+	$: currentPageData = serverSidePagination 
+		? tableDataRender  // For server-side, data is already paginated
+		: getCurrentPageData(currentPage, entriesPerPage, numberOfEntries, tableDataRender);
+
+	// NEW: Calculate display values using server-side data when available
+	let startingEntryIndex = 0;
+	$: startingEntryIndex = serverSidePagination 
+		? (apiCurrentPage - 1) * apiPageSize
+		: (currentPage - 1) * entriesPerPage;
+
+	let endingEntryIndex = 0;
+	$: endingEntryIndex = serverSidePagination
+		? Math.min(startingEntryIndex + currentPageData.length, apiTotalItems)
+		: startingEntryIndex + currentPageData.length;
+
+	// NEW: Modified pagination handlers to dispatch events for server-side pagination
 	function handlePageIncrement(numberOfPages) {
-		if (currentPage < numberOfPages) {
-			currentPage = currentPage + 1;
+		if (serverSidePagination) {
+			if (apiCurrentPage < numberOfPages) {
+				dispatch('pageChange', {
+					page: apiCurrentPage + 1,
+					pageSize: apiPageSize
+				});
+			}
+		} else {
+			if (currentPage < numberOfPages) {
+				currentPage = currentPage + 1;
+			}
 		}
 	}
 
 	function handlePageDecrement() {
-		if (currentPage > 1) {
-			currentPage = currentPage - 1;
+		if (serverSidePagination) {
+			if (apiCurrentPage > 1) {
+				dispatch('pageChange', {
+					page: apiCurrentPage - 1,
+					pageSize: apiPageSize
+				});
+			}
+		} else {
+			if (currentPage > 1) {
+				currentPage = currentPage - 1;
+			}
 		}
+	}
+
+	// NEW: Handle page selection from dropdown
+	function handlePageSelect() {
+		console.log('in handle page selct')
+		if (serverSidePagination) {
+			dispatch('pageChange', {
+				page: currentPage,
+				pageSize: apiPageSize
+			});
+		}
+		// For local pagination, the bind:value on Select already updates currentPage
 	}
 
 	// Function to highlight a particular item
@@ -391,7 +486,7 @@ function updateTableDataRender(searchValue) {
 
 	$: navigateToPage(dataToHighlight, entriesPerPage, numberOfEntries);
 	function navigateToPage() {
-		if (!dataToHighlight.enabled) return;
+		if (!dataToHighlight.enabled || serverSidePagination) return; // NEW: Skip for server-side pagination
 		let pageNumber = calculateNumberOfPages(numberOfEntries, entriesPerPage);
 		if (pageNumber <= 1) return;
 		let index = tableDataRender?.findIndex((data) => {
@@ -439,6 +534,32 @@ function updateTableDataRender(searchValue) {
 		}
 		return '-';
 	}
+
+	// -------------------------- Bulk selection functionality -------------------------
+	export let bulkSelect = false;
+	export let selectedRows = [];
+	
+	let allSelected = false;
+	$: allSelected = tableDataRender?.length > 0 && selectedRows?.length === tableDataRender?.length;
+	
+	function toggleSelectAll() {
+		if (allSelected) {
+			selectedRows = [];
+		} else {
+			selectedRows = tableDataRender?.map(row => row.uuid);
+		}
+		dispatch('selectionChange', { selectedRows });
+	}
+	
+	function toggleSelectRow(uuid) {
+		if (selectedRows?.includes(uuid)) {
+			selectedRows = selectedRows?.filter(rowId => rowId !== uuid);
+		} else {
+			selectedRows = [...selectedRows, uuid];
+		}
+		dispatch('selectionChange', { selectedRows });
+	}
+
 </script>
 
 {#if currentPageData?.length>0}
@@ -449,10 +570,22 @@ function updateTableDataRender(searchValue) {
 				<table class="min-w-full divide-y divide-gray-300 table-fixed">
 					<thead class={tableStyle == 'primary' ? 'bg-primary' : 'bg-gray-30'}>
 						<tr>
+							{#if bulkSelect}
+							<th scope="col" class="table-header hover:bg-primary-hover w-10">
+								<div class="px-4 flex items-center">
+									<input
+										type="checkbox"
+										checked={allSelected}
+										on:change={toggleSelectAll}
+										class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+									/>
+								</div>
+							</th>
+							{/if}
 							{#if tableHeadersDisplay}
 								{#each tableHeadersDisplay as header}
 									<th scope="col" style={header.width ? `width:${header.width};` : 'width:100%;'}
-									class=" table-header hover:bg-primary-hover">
+									class=" table-header  {!serverSidePagination ? 'hover:bg-primary-hover' : 'pointer-events-none'}">
 										<button
 											on:click={() => {
 												handleCreateSortAccordingToObject(header);
@@ -466,18 +599,18 @@ function updateTableDataRender(searchValue) {
 												{header.name}
 											</span>
 											<!-- {#if sortAccordingTo?.header !== null} -->
-											{#if typeof sortAccordingTo.header === 'string' && sortAccordingTo.header === header.key}
-											{#if sortAccordingTo.sortingOrder === 'descending'}
+											{#if !serverSidePagination && typeof sortAccordingTo.header === 'string' && sortAccordingTo.header === header.key}
+											{#if !serverSidePagination && sortAccordingTo.sortingOrder === 'descending'}
 												<GoogleMatrialIcon iconName={'south'} addClass="text-base" />
 												<!-- {:else}
 											Hello -->
 											{/if}
-											{#if sortAccordingTo.sortingOrder === 'ascending'}
+											{#if !serverSidePagination && sortAccordingTo.sortingOrder === 'ascending'}
 												<GoogleMatrialIcon iconName={'north'} addClass="text-base" />
 												<!-- {:else}
 											hello -->
 											{/if}
-											{:else}
+											{:else if !serverSidePagination}
 											<GoogleMatrialIcon
 												iconName={'sync_alt'}
 												addClass="text-base rotate-90 sort-icon "
@@ -505,6 +638,16 @@ function updateTableDataRender(searchValue) {
 						{#if currentPageData}
 							{#each currentPageData as data}
 								<tr style="background-color: {data?.highlighted ? highlightColor : 'transparent'}">
+									{#if bulkSelect}
+									<td class="px-4 py-3 whitespace-nowrap">
+										<input
+											type="checkbox"
+											checked={selectedRows?.includes(data.uuid)}
+											on:change={() => toggleSelectRow(data.uuid)}
+											class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+										/>
+									</td>
+									{/if}
 									{#each tableHeadersDisplay as header, index}
 										<td
 											class="break-words whitespace-normal pl-4 pr-3 text-sm font-base text-darkGray"
@@ -512,7 +655,11 @@ function updateTableDataRender(searchValue) {
 											class:py-3={rowHeight === 'normal'}
 											class:py-4={rowHeight === 'medium'}
 										>
-											{data[header?.key] || '-'}
+											{#if customRenderers[header.key]}
+												{@html customRenderers[header.key](data)}
+											{:else}
+												{data[header?.key] || '-'}
+											{/if}
 										</td>
 									{/each}
 									{#if actionConfigObject?.length > 0}
@@ -524,17 +671,10 @@ function updateTableDataRender(searchValue) {
 										>
 											<div class="flex gap-4 justify-center leading-3">
 												{#each actionConfigObject as action}
-													<!-- <button
-													on:click={() => handleActionDispatch(action.actionName, data)}
-													class="text-orange-100 hover:text-indigo-900"
-												>
-													<GoogleMatrialIcon iconName={action.actionIconName} />
-													<span class="sr-only">{action.actionName}</span></button
-												> -->
 													<button
 														on:click={() =>
 															handleActionDispatch(action?.actionName, data, action?.modal)}
-														class="text-secondary hover:text-indigo-900 relative"
+														class="text-accent hover:text-indigo-900 relative"
 														><div class="flex gap-0.5 items-start">
 															{#if action?.goto}
 																<a
@@ -556,8 +696,6 @@ function updateTableDataRender(searchValue) {
 								</tr>
 							{/each}
 						{/if}
-
-						<!-- More people... -->
 					</tbody>
 				</table>
 			</div>
@@ -581,8 +719,9 @@ function updateTableDataRender(searchValue) {
 		<div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
 			<div>
 				<p class="text-sm text-gray-700">
+					Showing
 					<span class="font-medium">{startingEntryIndex + 1}</span>
-					-
+					–
 					<span class="font-medium">{endingEntryIndex}</span>
 					of
 					<span class="font-medium">{numberOfEntries}</span>
@@ -616,6 +755,7 @@ function updateTableDataRender(searchValue) {
 						display_func={(e) => e.displayText}
 						value_func={(e) => e.index}
 						bind:value={currentPage}
+						on:change={handlePageSelect}
 					/>
 
 					<button

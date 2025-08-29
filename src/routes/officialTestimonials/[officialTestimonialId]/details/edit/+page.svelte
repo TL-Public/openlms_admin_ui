@@ -28,6 +28,7 @@
 			uuid: testimonial?.uuid,
 			image: testimonial?.image || null,
 			videoUrl: testimonial?.videoUrl || '',
+			orderNo:testimonial?.orderNo || null,
 
 			// English translation
 			nameEn: enTranslation?.name || '',

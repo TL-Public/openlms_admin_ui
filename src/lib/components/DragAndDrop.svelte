@@ -92,7 +92,7 @@
 </script>
 
 <div
-	class="bg-[#F3F4F6] p-4"
+	class="bg-[#F3F4F6] py-4"
 	bind:this={dropZone}
 	on:dragover|preventDefault={handleDragOver}
 	on:dragleave={handleDragLeave}

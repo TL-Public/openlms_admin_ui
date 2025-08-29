@@ -9,5 +9,6 @@
 	endPoint="/apis/trainingCenters/bulkUpload"
 	templatePath="/bulk-upload-training-center-template.xlsx"
 	templateFileName="training-center-template.xlsx"
+	usePolling={true}
 	/>
 </div>

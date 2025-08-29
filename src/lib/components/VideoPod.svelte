@@ -90,14 +90,14 @@
 
 	function roleBasedAcessSetting(){
 		if(!$userDetails?.role) return
-		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.DELETE_VIDEO)){
+		if(checkActionPermission($userDetails?.role, moduleNames?.VIDEOS,actionNames?.DELETE)){
 			permissionsObject.allowVideoDeletion=true	
 		} else{
 			permissionsObject.allowVideoDeletion=false	
 
 		}
 
-		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.EDIT_VIDEO)){
+		if(checkActionPermission($userDetails?.role, moduleNames?.VIDEOS,actionNames?.EDIT)){
 			permissionsObject.allowVideoEdit=true	
 		} else{
 			permissionsObject.allowVideoEdit=false	
@@ -160,12 +160,11 @@
 					btnType="custom"
 					  on:click={handleEditVideo} class="p-1"
 					>
-					  <Edit size={8} stroke="#206FC9" />
+					  <Edit size={8} stroke="#143164" />
 					  <span class="sr-only">Edit</span>
 					</Button>
 					{/if}
 					{#if showDeleteIcon}
-
 					<Button
 					on:click={() => handleDeleteButtonClick(video)}
 							class="p-1"

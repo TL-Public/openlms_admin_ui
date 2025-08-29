@@ -193,8 +193,8 @@
 				}
 			);
 			if (!response.ok) {
-				errorMessage = `Failed to move video. Please try again!`;
-				throw new Error('Failed to move video');
+				errorMessage = `Failed to move video. Please try again.`;
+				throw new Error('Failed to move video.');
 			}
 
 			resultOfApiCall = await response.json();
@@ -219,8 +219,8 @@
 				goto(`/login?redirectTo=${fromUrl}`);
 			}
 		} finally {
-			if (!resultOfApiCall?.error) return;
 			isSubmitting = false;
+			if (!resultOfApiCall?.error) return;
 			if (!errorMessage && !validationErrors) {
 				handleCancel();
 			}
@@ -276,6 +276,11 @@
 		}
 	}
 
+		function handleDropDown(e) {
+		selectedCourseUuid = e.detail.selectedItemId;
+		selectedCourse = e.detail.selectedItemName;
+		}
+
 	onMount(() => {
 		// Disable scrolling on the main page
 		document.body.style.overflow = 'hidden';
@@ -287,7 +292,7 @@
 	});
 </script>
 
-<div class="relative z-10" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+<div class="relative z-[99]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
 	<div
 		class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
 		aria-hidden="true"
@@ -334,8 +339,9 @@
 								filterCategory={'courseListing'}
 								placeholder={'Select a Course'}
 								validationErrors={validationErrors.selectedCourse || ''}
-								bind:selectedItemName={selectedCourse}
-								bind:selectedItemId={selectedCourseUuid}
+								selectedItemName={selectedCourse}
+								selectedItemId={selectedCourseUuid}
+								on:handleDispatchComboBoxData={handleDropDown}
 								on:handleDispatchFilterData={handleCancelSelectionInCourseDropDown}
 							/>
 						</div>

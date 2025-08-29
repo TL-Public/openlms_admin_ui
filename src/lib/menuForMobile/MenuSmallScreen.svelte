@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { roles } from '$lib/config.js';
 	import { onMount } from 'svelte';
-	import { menuItems } from '$lib/data.js';
+	import { menuItems, rolesWithCentreDetailsLabel, rolesWithStateDetailsLabel } from '$lib/data.js';
 
 
 	export let burgerMenuOpen;
@@ -13,52 +13,74 @@
 	let filteredSidebarList = [];
 	let sidebarList = [
 		{
+			name: 'My Profile',
+			link: '/userProfile',
+			key: menuItems?.MY_PROFILE
+		},
+		{
 			name: 'Dashboard',
-			link: '/dashboard'
+			link: '/dashboard',
+			key: menuItems?.DASHBOARD
 		},
 		{
 			name: 'NAR',
-			link: '/nar'
+			link: '/nar',
+			key: menuItems?.NAR
 		},
-		// {
-		// 	name: 'States',
-		// 	link: '/states'
-		// },
+		{
+			name: 'States',
+			link: '/states',
+			key: menuItems?.STATES
+		},
 		{
 			name: 'Training Centers',
-			link: '/trainingCenters'
+			link: '/trainingCenters',
+			key: menuItems?.TRAINING_CENTERS
 		},
 		{
 			name: 'Courses',
-			link: '/courses'
+			link: '/courses',
+			key: menuItems?.COURSES
 		},
 		{
 			name: 'Videos',
-			link: '/videos'
+			link: '/videos',
+			key: menuItems?.VIDEOS
 		},
 		{
 			name: 'Users',
-			link: '/users'
+			link: '/users',
+			key: menuItems?.USERS
 		},
 		{
 			name: 'Trainees',
-			link: '/trainees'
+			link: '/trainees',
+			key: menuItems?.TRAINEES
 		},
 		{
 			name: 'FAQs',
-			link: '/FAQs'
+			link: '/FAQs',
+			key: menuItems?.FAQS
 		},
 		{
 			name: 'Official Testimonials',
-			link: '/officialTestimonials'
+			link: '/officialTestimonials',
+			key: menuItems?.OFFICIAL_TESTIMONIALS
 		},
 		{
 			name: 'Trainee Testimonials',
-			link: '/traineeTestimonials'
+			link: '/traineeTestimonials',
+			key: menuItems?.TRAINEE_TESTIMONIALS
 		},
 		{
 			name: 'Configurations',
-			link: '/config'
+			link: '/config',
+			key: menuItems?.CONFIG
+		},
+		{
+			name: 'Upload History',
+			link: '/uploadHistory',
+			key: menuItems?.UPLOAD_HISTORY
 		}
 	];
 
@@ -80,11 +102,20 @@
 			(item) => !roles[$userDetails?.role]?.restrictedMenuList?.includes(item?.key)
 		);
 
-		if ([6, 7, 8, 9].includes(Number($userDetails?.role))) {
+		if (rolesWithCentreDetailsLabel?.includes(Number($userDetails?.role))) {
 			filteredSidebarList.forEach((item) => {
 				if (item?.key === menuItems?.TRAINING_CENTERS) {
 					item.name = 'Center Details';
 					item.link = `/trainingCenters/${$userDetails?.rsetiId}/details`;
+				}
+			});
+		}
+
+		if (rolesWithStateDetailsLabel?.includes(Number($userDetails?.role))) {
+			filteredSidebarList.forEach((item) => {
+				if (item?.key === menuItems?.STATES) {
+					item.name = 'State Details';
+					item.link = `/states/${$userDetails?.stateId}/details`;
 				}
 			});
 		}
@@ -118,7 +149,7 @@
 			{#if $userDetails?.name}
 					<li class=" w-full flex gap-4 items-center mt-auto   pt-2 pl-4">
 						<div
-							class="flex items-center justify-center w-8 h-8 bg-secondary font-medium text-white capitalize text-xl rounded-full leading-none m-0 p-0"
+							class="flex items-center justify-center w-8 h-8 bg-accent font-medium text-white capitalize text-xl rounded-full leading-none m-0 p-0"
 						>
 							{$userDetails?.name ? $userDetails.name[0] : ''}
 						</div>

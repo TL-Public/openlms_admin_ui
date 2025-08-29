@@ -7,9 +7,10 @@
 
 <div>
 	<BulkUpload
-		bulkUploadItemName="chapters"
-		endPoint="/apis/courses/details/${id}/chapters/bulkUpload"
+		bulkUploadItemName="Videos"
+		endPoint={`/apis/videos/bulkUpload`}
 		templatePath="/bulk-upload-chapters-template.xlsx"
-		templateFileName="chapters-template.xlsx"
+		templateFileName="videos-template.xlsx"
+		usePolling={true}
 	/>
 </div>

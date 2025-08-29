@@ -244,7 +244,8 @@
 							bind:value={formObject.displayCourseCode}
 							required
 						/>
-						<DropDown
+						<div>
+							<DropDown
 							on:handleDispatchFilterData={handleDropDown}
 							bind:selectedItemId={formObject.category}
 							bind:selectedItemName={formObject.categoryName}
@@ -252,7 +253,12 @@
 							options={courseCategory}
 							type={'categoryDropdown'}
 							title={'category'}
-						/>
+							/>
+						</div>
+
+						<a href="\courses\courseCategories" class="text-xs text-blue-500 hover:underline">
+							View All Categories
+						</a>
 						<InputField
 							label={'Course Duration (in days)'}
 							placeholder={'Enter Course Duration'}
@@ -274,6 +280,7 @@
 								alt="uploaded user profile"
 							/>
 
+							<div class="flex flex-col gap-2 items-center">
 							<Button
 								type="button"
 								on:click={handelUploadImage}
@@ -290,6 +297,11 @@
 								class="hidden"
 								accept=".jpg, .jpeg, .png"
 							/>
+
+						<p class="text-xs text-darkGray text-center">
+  						Recommended image dimensions: 240 × 240 px
+						</p>
+						</div>
 						</div>
 						{#if sizeErrorMessage}
 							<p class=" text-xs text-center text-red-500">{sizeErrorMessage}</p>

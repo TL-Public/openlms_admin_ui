@@ -29,13 +29,13 @@
 	<div class="relative flex gap-4">
 		<input
 			type="text"
-			class=" rounded-md sm:rounded-lg shadow-sm px-10 py-1 flex-1 sm:py-2 border border-secondary placeholder:text-sm leading-none"
+			class=" rounded-md sm:rounded-lg shadow-sm px-10 py-1 flex-1 sm:py-2 border border-accent placeholder:text-sm leading-none"
 			{placeholder}
 			bind:value={searchBoxValue}
 			on:input={handleSearchValue}
 		/>
 		<svg
-			class="absolute top-2 left-3 stroke-secondary"
+			class="absolute top-2 left-3 stroke-accent"
 			width="20"
 			height="20"
 			viewBox="0 0 20 20"

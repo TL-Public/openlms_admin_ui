@@ -71,7 +71,8 @@ export const rolesList = [
 	{ name: 'State Staff', roleId: 5, order: 5 },
 	{ name: 'RSETI Admin', roleId: 6, order: 6 },
 	{ name: 'RSETI Staff', roleId: 7, order: 7 },
-	{ name: 'Trainer', roleId: 8, order: 8 }
+	{ name: 'Trainer', roleId: 8, order: 8 },
+	{ name:'Content Manager', roleId:10, order:10}
 ];
 
 export const roleIds = {
@@ -82,18 +83,23 @@ export const roleIds = {
 	STATE_STAFF: 5,
 	RSETI_ADMIN: 6,
 	RSETI_STAFF: 7,
-	TRAINER: 8
+	TRAINER: 8,
+	CONTENT_MANAGER: 10
 };
 
-export const usersWithStateId = [4, 5, 6, 7, 8, 9];
-export const usersWithRsetiId = [6, 7, 8, 9];
+export const usersWithStateId = [4, 5, 6, 7, 8];
+export const usersWithRsetiId = [6, 7, 8];
+export const rolesWithCentreDetailsLabel = [6, 7, 8, 9]
+export const rolesWithStateDetailsLabel = [4,5]
+export const contentManager = [10]
 
 export const roleNames = {
 	NAR_USER: 'NAR_USER',
 	STATE_USER: 'STATE_USER',
 	RSETI_USER: 'RSETI_USER',
 	TRAINER_USER: 'TRAINER_USER',
-	TRAINEE_USER: 'TRAINEE_USER'
+	TRAINEE_USER: 'TRAINEE_USER',
+	CONTENT_USER:'CONTENT_USER'
 };
 
 export const userTypes= {
@@ -492,13 +498,15 @@ export let moduleNames = {
 	COURSES: 'courses',
 	TRAINING_CENTERS: 'trainingCenters',
 	TRAINING_CENTER_COURSES: 'trainingCenterCourses',
+	VIDEOS:'videos',
 	TRAINEES: 'trainees',
 	TRAINEE_COURSES: 'traineeCourses',
 	USERS: 'users',
 	TRAINEE_TESTIMONIALS: 'traineeTestimonials',
 	OFFICIAL_TESTIMONIALS: 'officialTestimonials',
 	FAQS: 'FAQs',
-	CONFIG:'config'
+	CONFIG:'config',
+	STATES:'states'
 };
 // for RBAC - DO NOT use this for action names in error handling
 export const actionNames = {
@@ -515,7 +523,8 @@ export const actionNames = {
 	ADD_VIDEO: 'addVideo',
 	DELETE_VIDEO: 'deleteVideo',
 	REORDER_VIDEO: 'reorderVideo',
-	MOVE_VIDEO: 'moveVideo'
+	MOVE_VIDEO: 'moveVideo',
+	VIEW_QUIZ:'viewQuiz'
 };
 
 // for RBAC - in the same format as route names
@@ -532,7 +541,8 @@ export const menuItems = {
 	OFFICIAL_TESTIMONIALS: 'officialTestimonials',
 	TRAINEE_TESTIMONIALS: 'traineeTestimonials',
 	MY_PROFILE: 'myProfile',
-	CONFIG: 'config'
+	CONFIG: 'config',
+	UPLOAD_HISTORY:'uploadHistory'
 };
 
 //for error messages - in readable format with spaces

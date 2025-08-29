@@ -1,8 +1,6 @@
 <script>
 	import AddStateForm from '$lib/states/addState/AddStateForm.svelte';
 	import { page } from '$app/stores';
-
-	export let data;
 	
 </script>
 

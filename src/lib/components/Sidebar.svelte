@@ -3,7 +3,7 @@
 	import { roles } from '$lib/config.js';
 	import { userDetails } from '/src/routes/store.js';
 	import { onMount } from 'svelte';
-	import { menuItems } from '$lib/data.js';
+	import { menuItems, rolesWithCentreDetailsLabel, rolesWithStateDetailsLabel } from '$lib/data.js';
 
 	export let route = '';
 
@@ -42,11 +42,11 @@
 			link: '/nar',
 			key: menuItems?.NAR
 		},
-		// {
-		// 	name: 'States',
-		// 	link: '/states',
-		// 	key: menuItems?.STATES
-		// },
+		{
+			name: 'States',
+			link: '/states',
+			key: menuItems?.STATES
+		},
 		{
 			name: 'Training Centers',
 			link: '/trainingCenters',
@@ -91,6 +91,11 @@
 			name: 'Configurations',
 			link: '/config',
 			key: menuItems?.CONFIG
+		},
+		{
+			name: 'Upload History',
+			link: '/uploadHistory',
+			key: menuItems?.UPLOAD_HISTORY
 		}
 	];
 
@@ -105,11 +110,19 @@
 			(item) => !roles[$userDetails?.role]?.restrictedMenuList?.includes(item?.key)
 		);
 
-		if ([6, 7, 8, 9].includes(Number($userDetails?.role))) {
+		if (rolesWithCentreDetailsLabel?.includes(Number($userDetails?.role))) {
 			filteredSidebarList.forEach((item) => {
 				if (item?.key === menuItems?.TRAINING_CENTERS) {
 					item.name = 'Center Details';
 					item.link = `/trainingCenters/${$userDetails?.rsetiId}/details`;
+				}
+			});
+		}
+		if (rolesWithStateDetailsLabel?.includes(Number($userDetails?.role))) {
+			filteredSidebarList.forEach((item) => {
+				if (item?.key === menuItems?.STATES) {
+					item.name = 'State Details';
+					item.link = `/states/${$userDetails?.stateId}/details`;
 				}
 			});
 		}

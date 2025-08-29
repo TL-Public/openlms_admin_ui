@@ -10,7 +10,7 @@
 <div>
 	<BulkUpload 
 	bulkUploadItemName="courses under a training center"
-	endPoint="/apis/trainingCenters/{id}/bulkUploadCourses"
+	endPoint={`/apis/trainingCenters/${id}/bulkUploadCourses`}
 	templatePath="/bulk-upload-training-center-courses-template.xlsx"
 	templateFileName="training-center-courses-template.xlsx"
 	/>

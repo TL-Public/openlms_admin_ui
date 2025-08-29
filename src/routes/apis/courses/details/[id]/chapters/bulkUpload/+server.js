@@ -10,7 +10,7 @@ export async function POST({ request, cookies }) {
 		const formData = await request.formData();
 
          res = await fetch(
-            `${BASE_URL}/apis/v1/courses/batch-update/videos?file`,
+            `${BASE_URL}/apis/v1/batch/videos`,
             {
                 method: 'POST',
                 headers: {
@@ -20,13 +20,19 @@ export async function POST({ request, cookies }) {
                body: formData
             }
         );
-        if (!res.ok || !res?.status===200) {
-            responseData = await res?.text();
-            throw new Error(responseData ||'Failed to batch update chapters');
+console.log('res', res)
+        if (!res.ok || !res?.status===202) {
+            try{
+                responseData = await res?.json();
+                console.log('responseData', responseData)
+                throw new Error(responseData ||'Failed to batch update chapters');
+            } catch {
+                throw new Error('Failed to batch update chapters');
+            }
         }
 
-        responseData = await res?.text();
-        return json(responseData); 
+        responseData = await res?.json();
+        return json(responseData,{status:res?.status}); 
 
     } catch (error) {
         return json({ error: error?.message }, { status:res?.status}); 

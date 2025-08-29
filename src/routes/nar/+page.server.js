@@ -51,7 +51,7 @@ export const actions = {
 					body: JSON.stringify(data)
 				});
 				if (!response.ok || response.status !== 201) {
-					throw new Error('Failed to submit form! Please try again');
+					throw new Error('Failed to submit form. Please try again');
 				}
 			}
 
@@ -63,7 +63,7 @@ export const actions = {
 				});
 
 				if (!response.ok || response.status !== 200) {
-					throw new Error('Failed to submit form! Please try again');
+					throw new Error('Failed to submit form. Please try again');
 				}
 			}
 

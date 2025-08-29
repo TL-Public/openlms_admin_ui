@@ -1,5 +1,7 @@
 <script>
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { browser } from '$app/environment';
+	import { createEventDispatcher, onMount, tick } from 'svelte';
+	
 	export let options = [];
 	export let filterCategory;
 	export let selectedItemId = '';
@@ -13,76 +15,274 @@
 	let optionsCopy = [...options];
 	let showDropdown = false;
 	let dropDownRef;
+	let inputRef;
+	let listRef;
 	let searchFilterValue = '';
 	let debounceTimer;
+	let highlightedIndex = -1;
+	let isUserTyping = false;
+	let inputFocused = false;
 
-	$:if (options?.length === 0) {
-		if (!selectedItemName && !selectedItemId) {
-			selectedItemName = '';
-		selectedItemId = '';
-		searchFilterValue = '';
-		showDropdown = false;
+	// Internal state for selection
+	let internalSelectedItemId = selectedItemId;
+	let internalSelectedItemName = selectedItemName;
+
+	// Sync internal state with parent props
+	$: if (
+		selectedItemId !== internalSelectedItemId ||
+		selectedItemName !== internalSelectedItemName
+	) {
+		internalSelectedItemId = selectedItemId;
+		internalSelectedItemName = selectedItemName;
+		if (!isUserTyping) {
+			searchFilterValue = selectedItemName || '';
 		}
-		
-	} 
+	}
 
-	// Update `optionsCopy` dynamically based on the `searchFilterValue`
-	$: optionsCopy = searchFilterValue
+	$: if (options?.length === 0) {
+		if (!internalSelectedItemName && !internalSelectedItemId) {
+			internalSelectedItemName = '';
+			internalSelectedItemId = '';
+			searchFilterValue = '';
+			showDropdown = false;
+		}
+	}
+
+	// filtering logic
+	$: optionsCopy = searchFilterValue && isUserTyping
 		? options?.filter((data) =>
 				(data?.title || data?.name)?.toLowerCase().includes(searchFilterValue?.toLowerCase())
 			)
 		: [...options];
 
-	// If no options match, the user's input stays in the field and dropdown remains open
-	$: if (optionsCopy.length === 0 && searchFilterValue) {
+	// dropdown control
+	$: if (optionsCopy.length === 0 && searchFilterValue && isUserTyping) {
 		showDropdown = true;
-	} 
+	}
 
+	// the input value display logic
+	$: inputDisplayValue = isUserTyping ? searchFilterValue : (internalSelectedItemName || '');
 
 	onMount(() => {
+		if(!browser) return
+		if (internalSelectedItemName) {
+			searchFilterValue = internalSelectedItemName;
+		}
+		showDropdown = false;
+		isUserTyping = false;
+		
 		document.addEventListener('click', handleClickOnDocument);
+		document.addEventListener('keydown', handleGlobalKeydown);
+		
 		return () => {
 			document.removeEventListener('click', handleClickOnDocument);
+			document.removeEventListener('keydown', handleGlobalKeydown);
+			if (debounceTimer) {
+				clearTimeout(debounceTimer);
+			}
 		};
 	});
 
+	// click outside handler
 	function handleClickOnDocument(e) {
 		if (dropDownRef && dropDownRef.contains(e.target)) {
-			showDropdown = true;
+			if (!showDropdown) {
+				showDropdown = true;
+			}
 		} else {
-			showDropdown = false;
+			closeDropdown();
 		}
 	}
 
-	function handleListItemSelection(e) {
+	// Add keyboard navigation
+	function handleGlobalKeydown(e) {
+		if (!showDropdown || !inputFocused) return;
+
+		switch (e.key) {
+			case 'ArrowDown':
+				e.preventDefault();
+				navigateOptions(1);
+				break;
+			case 'ArrowUp':
+				e.preventDefault();
+				navigateOptions(-1);
+				break;
+			case 'Enter':
+				e.preventDefault();
+				if (highlightedIndex >= 0 && highlightedIndex < optionsCopy.length) {
+					selectOptionByIndex(highlightedIndex);
+				}
+				break;
+			case 'Escape':
+				e.preventDefault();
+				closeDropdown();
+				break;
+		}
+	}
+
+	function navigateOptions(direction) {
+		if (optionsCopy.length === 0) return;
+
+		if (highlightedIndex === -1) {
+			highlightedIndex = direction > 0 ? 0 : optionsCopy.length - 1;
+		} else {
+			highlightedIndex += direction;
+			if (highlightedIndex < 0) {
+				highlightedIndex = optionsCopy.length - 1;
+			} else if (highlightedIndex >= optionsCopy.length) {
+				highlightedIndex = 0;
+			}
+		}
+		scrollToHighlighted();
+	}
+
+	async function scrollToHighlighted() {
+		await tick();
+		if (listRef && highlightedIndex >= 0) {
+			const item = listRef.children[highlightedIndex];
+			if (item) {
+				item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+			}
+		}
+	}
+
+	function selectOptionByIndex(index) {
+		if (index >= 0 && index < optionsCopy.length) {
+			const option = optionsCopy[index];
+			selectOption(option);
+		}
+	}
+
+	function selectOption(data) {
 		validationErrors = '';
-		const selectedData = e.target.closest('li').dataset;
-		selectedItemId = selectedData.id;
-		selectedItemName = selectedData.name;
-		searchFilterValue = selectedItemName;
+		internalSelectedItemId = data?.uuid || data?.id;
+		internalSelectedItemName = data?.title || data?.name;
+		searchFilterValue = internalSelectedItemName;
+		isUserTyping = false;
 		showDropdown = false;
-		dispatch('handleDispatchComboBoxData', { selectedItemId, selectedItemName });
+		highlightedIndex = -1;
+		dispatch('handleDispatchComboBoxData', { selectedItemId: internalSelectedItemId, selectedItemName: internalSelectedItemName });
+	}
+
+	function handleListItemSelection(e) {
+		const li = e.target.closest('li');
+		if (!li || !li.dataset.id) return;
+		
+		const selectedData = li.dataset;
+		const data = {
+			uuid: selectedData.id,
+			id: selectedData.id,
+			title: selectedData.name,
+			name: selectedData.name
+		};
+		selectOption(data);
 	}
 
 	function clearSelection() {
-		selectedItemName = '';
-		selectedItemId = '';
+		internalSelectedItemName = '';
+		internalSelectedItemId = '';
 		searchFilterValue = '';
+		isUserTyping = false;
 		showDropdown = false;
-		dispatch('handleDispatchFilterData', { selectedItemId, selectedItemName });
+		highlightedIndex = -1;
+		dispatch('handleDispatchFilterData', { selectedItemId: '', selectedItemName: '' });
+		if (inputRef) {
+			inputRef.focus();
+		}
 	}
 
 	function toggleDropdown() {
+		if (disabled) return;
+		
 		showDropdown = !showDropdown;
+		highlightedIndex = -1;
+		
+		if (showDropdown && selectedItemId) {
+			// Highlight currently selected item
+			const selectedIndex = optionsCopy.findIndex(option => 
+				(option?.id || option?.uuid) === selectedItemId
+			);
+			if (selectedIndex >= 0) {
+				highlightedIndex = selectedIndex;
+			}
+		}
 	}
 
-	// Handle search input with debouncing
 	function handleSearchInput(e) {
 		const value = e.target.value;
+		
+		// Clear existing timer
 		clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => {
-			searchFilterValue = value;
-		}, 300); }
+		
+		// Set user typing flag immediately
+		isUserTyping = true;
+		
+		// If user is clearing the input or typing something different from selected
+		if (selectedItemName && value !== selectedItemName) {
+			// Clear selection immediately when user starts typing something different
+			// selectedItemId = '';
+			// selectedItemName = '';
+		}
+		
+		// Update search value immediately for responsive UI
+		searchFilterValue = value;
+		
+		// Open dropdown if not already open
+		if (!showDropdown) {
+			showDropdown = true;
+		}
+		
+		// Reset highlighted index
+		highlightedIndex = -1;
+		
+		// Clear validation errors
+		if (validationErrors) {
+			validationErrors = '';
+		}
+		
+		// If input is empty, close dropdown after a short delay
+		if (!value.trim()) {
+			debounceTimer = setTimeout(() => {
+				if (!selectedItemId) {
+					showDropdown = false;
+					isUserTyping = false;
+				}
+			}, 100);
+		}
+	}
+
+	function closeDropdown() {
+		showDropdown = false;
+		highlightedIndex = -1;
+		
+		// If user was typing but didn't select anything, revert to selected item
+		if (isUserTyping) {
+			if (selectedItemName) {
+				searchFilterValue = selectedItemName;
+			} else {
+				searchFilterValue = '';
+			}
+			isUserTyping = false;
+		}
+	}
+
+	function handleInputFocus() {
+		inputFocused = true;
+	}
+
+	function handleInputBlur() {
+		inputFocused = false;
+		// Small delay to allow for option selection
+		setTimeout(() => {
+			if (!inputFocused) {
+				closeDropdown();
+			}
+		}, 150);
+	}
+
+	function handleOptionMouseEnter(index) {
+		highlightedIndex = index;
+	}
 </script>
 
 <div>
@@ -93,19 +293,27 @@
 	{/if}
 	<div class="relative" bind:this={dropDownRef}>
 		<input
+			bind:this={inputRef}
 			type="text"
 			id={filterCategory}
 			class="block w-full rounded-md border-0 py-2 pl-3 pr-12 sm:py-1.5 sm:pl-2 sm:pr-20 text-darkGray shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-darkGray focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 truncate text-xs"
 			role="combobox"
 			aria-controls="options"
+			aria-expanded={showDropdown}
+			aria-haspopup="listbox"
 			placeholder={placeholder || ''}
-			value={searchFilterValue || selectedItemName}
+			value={inputDisplayValue}
+			title={inputDisplayValue}
 			class:ring-red-500={validationErrors}
 			class:ring-gray-300={!validationErrors}
 			{disabled}
 			on:click={toggleDropdown}
+			on:focus={handleInputFocus}
+			on:blur={handleInputBlur}
 			on:input={handleSearchInput}
 		/>
+		
+		<!-- Keep all existing buttons exactly the same -->
 		{#if selectedItemName && showDropdown && !disabled}
 			<button
 				type="button"
@@ -141,7 +349,7 @@
 			</button>
 		{/if}
 		{#if !validationErrors && !showDropdown && !disabled}
-			<button class="absolute inset-y-0 right-0 flex items-center px-2 focus:outline-none">
+			<button class="absolute inset-y-0 right-0 flex items-center px-2 focus:outline-none" on:click={toggleDropdown}>
 				<svg
 					class="-mr-1 h-4 w-4 sm:h-5 sm:w-5 text-gray-400"
 					viewBox="0 0 20 20"
@@ -158,6 +366,7 @@
 		{/if}		
 		{#if showDropdown && !disabled}
 			<ul
+				bind:this={listRef}
 				class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
 				id="options"
 				role="listbox"
@@ -168,16 +377,18 @@
 						No options available
 					</li>
 				{:else if optionsCopy?.length > 0}
-					{#each optionsCopy as data (data?.id || data?.uuid)}
+					{#each optionsCopy as data, index (data?.id || data?.uuid)}
 						<li
 							data-id={data?.uuid || data?.id}
 							data-name={data?.title || data?.name}
 							class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900"
+							class:bg-indigo-100={highlightedIndex === index}
+							on:mouseenter={() => handleOptionMouseEnter(index)}
 						>
 							<span class="block truncate text-xs sm:text-sm" title={data?.title || data?.name}>
 								{data?.title || data?.name}
 							</span>
-							{#if selectedItemId == (data?.uuid || data?.id)}
+							{#if internalSelectedItemId == (data?.uuid || data?.id)}
 								<span class="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600">
 									<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 										<path
@@ -203,4 +414,4 @@
 			</div>
 		{/if}
 	</div>
-</div> 
+</div>

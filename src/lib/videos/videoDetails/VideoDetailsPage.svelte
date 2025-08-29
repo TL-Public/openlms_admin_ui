@@ -14,12 +14,15 @@
 	import { writable } from 'svelte/store';
 	import { userDetails } from '/src/routes/store.js';
 	import { HOST_URL } from '$lib/config.js';
+	import {  extractYouTubeVideoId } from '$lib/utils/helper.js';
+	import KpointPlayer from '$lib/components/KpointPlayer.svelte';
 
 	export let videoDetails = {};
 	export let linkedContent = {};
 	export let contentUuid = '';
 	export let serviceToken = null;
-
+	export let showQuiz = false;
+	
 	let iframeUrl = '';
 	let iframeRef = null;
 	const CLIENT_KEY = import.meta.env.VITE_CLIENT_KEY;
@@ -484,8 +487,11 @@
 	</div>
 	<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-6 break-words">
 		{#if !errorInVideos}
-			<div class="aspect-auto sm:mb-4">
-				<VideoPlayer videoId={videoDetails?.extId} />
+			<div class="aspect-auto sm:mb-4 ">
+				<div class="rounded-md overflow-hidden mb-4">
+					<VideoPlayer videoId={extractYouTubeVideoId(videoDetails?.url)} />
+					 <!-- <KpointPlayer videoId={videoDetails?.extId} /> -->
+				</div>
 				<div>
 					<div class="">
 						<VideoDetails {videoDetails} />
@@ -499,6 +505,7 @@
 			<ViewershipChart />
 		</div>
 	</div>
+	{#if showQuiz}
 	<div>
 		<div class="mb-4">
 			<Button customClass="w-fit" on:click={handleQuizAddition}
@@ -647,4 +654,5 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
 </div>
