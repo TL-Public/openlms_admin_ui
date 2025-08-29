@@ -1,7 +1,16 @@
 import { getErrorMessage, handleRedirection } from '$lib/utils/helper.js';
-import { resourceNames, userActions } from '$lib/data.js';
+import { resourceNames, userActions } from '$lib/data.js'
+import { browser } from '$app/environment';
+import { userDetails } from '/src/routes/store.js';
 
-export async function load({ fetch, url, params }) {
+
+export async function load({ fetch, url, params, parent }) {
+
+	if (browser) {
+	const { user } = await parent();
+	userDetails?.set(user);
+	}
+	
 	const fetchTestimonialDetails = async () => {
 		let id = params?.traineeTestimonialId;
 		let res;

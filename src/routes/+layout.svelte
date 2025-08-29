@@ -10,7 +10,12 @@
 	import BreadCrumbs from '$lib/components/BreadCrumbs.svelte';
 	import {showLoadingSpinner} from '/src/routes/store.js'
 	import Spinner from '$lib/components/Spinner.svelte';
+	import HeaderOLMS from '$lib/components/edureach/HeaderOLMS.svelte';
+	import FooterOLMS from '$lib/components/edureach/FooterOLMS.svelte';
 
+	export let data
+
+	let {openLMS} = data;
 
 
 	// varibale to track loading state
@@ -30,7 +35,11 @@
 {/if}
 
 {#if !routesWithoutHeader.includes(route)}
+{#if !openLMS}
 	<Header />
+{:else}
+<HeaderOLMS />
+{/if}
 {/if}
 <main class="flex min-h-screen bg-gray-5 overflow-x-hidden">
 	{#if $showLoadingSpinner === true}
@@ -54,4 +63,8 @@
 		<slot />
 	{/if}
 </main>
+{#if !openLMS}
 <Footer />
+{:else}
+<FooterOLMS />
+{/if}

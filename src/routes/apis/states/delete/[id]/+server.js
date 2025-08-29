@@ -2,10 +2,12 @@ import { json } from '@sveltejs/kit';
 import { BASE_URL } from '$lib/config';
 
 // API to get list of all RSETIs
-export async function DELETE({ params }) {
+export async function DELETE({ params, cookies }) {
+	const authToken = cookies.get('authToken');
 	const { id } = params;
 	const headers = {
-		'Content-Type': 'application/json'
+		'Content-Type': 'application/json',
+		Authorization: `Bearer ${authToken}`
 	};
 
 	let res;
@@ -14,6 +16,9 @@ export async function DELETE({ params }) {
 			method: 'DELETE',
 			headers: headers
 		});
+
+		console.log('res', res)
+
 		if (!res.ok) {
 			throw new Error(404, 'Data Not Found!');
 		}

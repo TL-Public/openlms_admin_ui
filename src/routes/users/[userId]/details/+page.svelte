@@ -67,7 +67,7 @@
 			{rolesList}
 			{stateName}
 			{rsetiName}
-      enableEdit={true}
+      		enableEdit={true}
 			imageUrl={userDetails.photoUrl ? `${userDetails.photoUrl}?t=${Date.now()}` : ''}
 		/>
 	</div>

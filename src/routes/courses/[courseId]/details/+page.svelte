@@ -14,16 +14,18 @@
 
 	export let data;
 
-	let { stateData, videosData, courseDetailsData, coursesData } = data;
+	let { stateData, videosData, courseDetailsData, coursesData, introVideos } = data;
 	let showHorizontalLine = videosData?.data?.length > 0 ? true : false;
 	let coursesList = [];
 	let filterOptions = [];
+	let languageAvailableForVideos = []
 	let genderData = [
 		{ id: '1', name: 'Female' },
 		{ id: '2', name: 'Male' },
 		{ id: '3', name: 'Trans Gender' }
 	];
 	let courseTitle = '';
+	let deletedIntroVideoLanguageCode = null
 
 	$: error = courseDetailsData?.error ? courseDetailsData?.error : '';
 
@@ -42,11 +44,13 @@
 	}
 
 	$: if (!courseDetailsData?.error) {
+		let videos=[]
 		if (courseDetailsData?.translations) {
 			const course =
 				courseDetailsData?.translations?.find((item) => item?.languageCode === 'en') || {};
-			courseTitle = course.title ? course.title : '';
+				courseTitle = course.title ? course.title : '';
 		}
+		
 	}
 
 	// Preparing the states data for the filter component
@@ -94,6 +98,10 @@
 		// }
 	}
 
+	function handleRemoveIntroVideo(e){
+		deletedIntroVideoLanguageCode = e.detail.languageCode
+	}
+
 	onMount(() => {
 		chapterSuccessMessage.set('');
 	});
@@ -135,7 +143,7 @@
 </div>
 {#if !error}
 	<div class="">
-		<CourseDetailsOverview courseData={courseDetailsData} {showHorizontalLine} />
+		<CourseDetailsOverview courseData={courseDetailsData} {showHorizontalLine} {deletedIntroVideoLanguageCode} {introVideos}/>
 	</div>
 	<div class=" mt-8 mb-12">
 		<!-- <hr class="my-8 horizontal-line" /> -->
@@ -145,6 +153,7 @@
 			courseUuid={courseDetailsData?.uuid}
 			{coursesList}
 			{courseTitle}
+			on:introVideoRemoved={handleRemoveIntroVideo}
 		/>
 	</div>
 {:else}

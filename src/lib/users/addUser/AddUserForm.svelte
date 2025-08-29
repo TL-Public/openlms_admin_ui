@@ -104,6 +104,10 @@
 			formObject.userRoleName = roleOptions.find((item) => item.roleId === formObject.roleId)?.name;
 			formObject.stateName = stateOptionList.find((item) => item.id === formObject.stateId)?.name;
 			formObject.rsetiName = rsetiOptionList.find((item) => item.id === formObject.rsetiId)?.name;
+
+			if(formObject?.currentAddr?.toLowerCase() === formObject?.permanentAddr?.toLowerCase() ){
+				formObject.currentAddressSameAsPermanent = true
+			}
 		}
 
 		const unsubscribe = userDetails?.subscribe((user) => {
@@ -411,43 +415,53 @@
 			// `result` is an `ActionResult` object
 			// `update` is a function which triggers the default logic that would be triggered if this callback wasn't set
 			await result;
+			try{
 
-			if (search === '?/final') {
-				if (result.type == 'success') {
-					if (method === 'POST') {
-						message.set(
-							`Successfully added ${formObject?.userRoleName} user - "${formObject?.name}".`
-						);
-
-						goto(`/users`, {
-							invalidateAll: true
-						});
+				if (search === '?/final') {
+					if (result.type == 'success') {
+						if (method === 'POST') {
+							message.set(
+								`Successfully added ${formObject?.userRoleName} user - "${formObject?.name}".`
+							);
+	
+							goto(`/users`, {
+								invalidateAll: true
+							});
+						}
+						if (method === 'PUT') {
+							message.set(
+								`Successfully edited ${formObject?.userRoleName} user - "${formObject?.name}".`
+							);
+							goto(`/users`, {
+								invalidateAll: true
+							});
+						}
 					}
-					if (method === 'PUT') {
-						message.set(
-							`Successfully edited ${formObject?.userRoleName} user - "${formObject?.name}".`
-						);
-						goto(`/users`, {
-							invalidateAll: true
-						});
-					}
-				}
-
-				if (result.type == 'failure') {
-					formObject = formObject;
-					creationError = true;
-					isSubmitting = false;
-
-					if (result?.data?.error) {
-						errorMessage = result?.data?.error;
-						if (result?.status === 401) {
-							handleRedirection(result.status, url.pathname, url.search);
-						} else {
-							//handle other errors
+	
+					if (result.type == 'failure') {
+						formObject = formObject;
+						creationError = true;
+						isSubmitting = false;
+	
+						if (result?.data?.error) {
+							errorMessage = result?.data?.error;
+							if (result?.status === 401) {
+								handleRedirection(result.status, url.pathname, url.search);
+							} else {
+								//handle other errors
+							}
 						}
 					}
 				}
+			} catch(error){
+				creationError = true;
+				isSubmitting = false;
+				errorMessage = error.message;
+			} finally {
+				isSubmitting = false;
+				
 			}
+
 		};
 	}
 
@@ -485,9 +499,9 @@
 					{method === 'POST' ? '1. Add User' : '1. Edit User'}
 				</h2>
 				<!-- First Row -->
-				<hr class="horizontal-line mb-8" />
-				<div class="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-20 gap-y-3 mb-3 sm:mb-6">
-					<div class="flex flex-col gap-6 order-2 sm:order-none">
+				<hr class="horizontal-line mb-4" />
+				<div class="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-20 gap-y-4 mb-4">
+					<div class="flex flex-col gap-4 order-2 sm:order-none">
 						<div class="w-full">
 							<InputField
 								label={'Name'}
@@ -541,7 +555,7 @@
 					</div>
 					<div class="w-full flex flex-col items-center justify-center gap-4">
 						<img
-							class="w-32 rounded-lg border object-cover"
+							class="w-32 h-auto max-h-32 rounded-lg border object-cover"
 							src={displayImage
 								? displayImage.startsWith('blob:')
 									? displayImage // Blob URL doesn't need a timestamp
@@ -571,7 +585,7 @@
 						{/if}
 					</div>
 				</div>
-				<div class="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-20 gap-y-3 sm:gap-y-6">
+				<div class="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-20 gap-y-3 sm:gap-y-6 mb-4">
 					<div class="w-full">
 						<DropDown
 							title="Role"
@@ -593,7 +607,8 @@
 						/>
 					</div>
 
-					<div class="sm:col-span-2 grid sm:grid-cols-2 sm:gap-x-20 gap-y-3 sm:gap-y-6">
+					{#if showStateList || showRsetiList}
+					<div class="sm:col-span-2 grid sm:grid-cols-2 sm:gap-x-20 gap-y-3 sm:gap-y-6 ">
 						{#if showStateList}
 							<div class="w-full">
 								<SearchableComboBox
@@ -601,8 +616,8 @@
 									label={'Select state'}
 									filterCategory={'stateListing'}
 									placeholder={'Select state'}
-									bind:selectedItemName={formObject.stateName}
-									bind:selectedItemId={formObject.stateId}
+									selectedItemName={formObject.stateName}
+									selectedItemId={formObject.stateId}
 									validationErrors={formErrors.stateId ? 'Please select state' : ''}
 									on:handleDispatchComboBoxData={handleStateSelection}
 									on:handleDispatchFilterData={handleStateClearFilter}
@@ -617,8 +632,8 @@
 									label={'Select RSETI'}
 									filterCategory={'rsetiListing'}
 									placeholder={'Select RSETI'}
-									bind:selectedItemName={formObject.rsetiName}
-									bind:selectedItemId={formObject.rsetiId}
+									selectedItemName={formObject.rsetiName}
+									selectedItemId={formObject.rsetiId}
 									validationErrors={formErrors.rsetiId ? 'Please select RSETI' : ''}
 									on:handleDispatchComboBoxData={handleRsetiSelection}
 									on:handleDispatchFilterData={handleRsetiClearFilter}
@@ -627,6 +642,7 @@
 							</div>
 						{/if}
 					</div>
+					{/if}
 				</div>
 				<div>
 					<div class="mb-4 lg:mb-4 w-full">

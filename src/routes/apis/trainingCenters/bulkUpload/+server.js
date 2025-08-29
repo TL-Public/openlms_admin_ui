@@ -4,43 +4,40 @@ import { BASE_URL } from '$lib/config';
 
 export async function POST({ request, cookies }) {
 	const authToken = cookies.get('authToken');
-	let res;
-	let responseData;
+    let res
+    let responseData
 
-	try {
+    try {
 		const formData = await request.formData();
 
-		res = await fetch(
-			`${BASE_URL}/apis/v1/rsetis/batch-update`,
-			{
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${authToken}`
-				},
-				body: formData
-			}
-		);
+         res = await fetch(
+            `${BASE_URL}/apis/v1/batch/rsetis`,
+            {
+                method: 'POST',
+                headers: {
+					Authorization: `Bearer ${authToken}`, 
+                    
+                },
+               body: formData
+            }
+        );
+console.log('res', res)
+        if (!res.ok || !res?.status===202) {
+            try{
+                responseData = await res?.json();
+                console.log('responseData', responseData)
+                throw new Error(responseData ||'Failed to batch update rsetis');
+            } catch {
+                throw new Error('Failed to batch update rsetis');
+            }
+        }
 
-		responseData = await res.json();
+        responseData = await res?.json();
+        return json(responseData,{status:res?.status}); 
 
-		// Check the `count` field to determine success or failure
-		if (responseData?.count === 0) {
-		// If failure, return the error message and file URL to the component
-		return json(
-		{
-			error: responseData.errorMsg,
-			errorReportUrl: responseData.errorFileUrl
-		},
-		{ status: res?.status }
-		);
-	}
-
-
-		// If successful, return the response data
-		return json(responseData);
-	} catch (error) {
-		// Return error with an appropriate status code and message
-		return json({ error: error.message }, { status: res?.status });
-	}
+    } catch (error) {
+        return json({ error: error?.message }, { status:res?.status}); 
+    }
 }
+
 

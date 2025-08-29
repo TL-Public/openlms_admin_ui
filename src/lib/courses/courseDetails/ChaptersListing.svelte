@@ -13,10 +13,13 @@
 	import { page } from '$app/stores';
 	import { onMount, tick, onDestroy } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
-	import {roles} from '$lib/config.js'
-	import {userDetails} from '/src/routes/store.js'
-	import { checkActionPermission } from '$lib/utils/helper.js'
-	import {moduleNames, actionNames} from '$lib/data.js'
+	import { roles } from '$lib/config.js';
+	import { userDetails } from '/src/routes/store.js';
+	import { checkActionPermission } from '$lib/utils/helper.js';
+	import { moduleNames, actionNames } from '$lib/data.js';
+	import { languageMap, languageOrder } from '/src/config/constants.js';
+	import DropDown from '$lib/components/DropDown.svelte';
+	import { createEventDispatcher } from 'svelte';
 
 	export let courseCode;
 	export let chaptersData = [];
@@ -24,6 +27,7 @@
 	export let coursesList = [];
 	export let courseTitle;
 
+	let dispatch = createEventDispatcher();
 	let chapterSelectedForDeletionEnglish = '';
 	let chapterSelectedForDeletionHindi = '';
 	let chapterDeletionUuid = '';
@@ -40,17 +44,47 @@
 	let hashRouteId = '';
 	let accordionRef = {};
 	let isModalOpen = false;
-	let permissionsObject ={
-	showChapterEditIcon : false,
-	showChapterDeleteIcon : false,
-	showChapterAddIcon:false,
-	allowReorderChapter : false
-	}
+
+	// ----- Bulk Deletion Related Variables ---------
+
+	let languageOptionsForVideoDeletion = [];
+	let languageAvailableForVideos = [];
+	let videoBulkDeletionModal = false;
+	let bulkDeleteConfirmationText = 'Please delete the videos';
+	let deleteTextInputBulkVideo = '';
+	let bulkVideoDeleteTextConfirmation = false;
+	let deleteIntroVideo = false;
+	let includeIntroVideoInChapterBulkDeletion  = false;
+
+	let showChapterBulkDeletionModal = false;
+	let bulkChapterDeletionApiEndpoint = '';
+	let bulkChapterDeletionConfirmationText = 'please delete all chapters';
+	let deleteTextInputBulkChapter = '';
+	let isBulkChapterDeleteConfirmed = false;
+	let videoBulkDeleteSelectionError = '';
+	let chapterListForDropdown = [];
+
+	let selectedChapterForVideoDeletion = {
+		id: 0,
+		name: 'All',
+		uuid: 'all'
+	};
+	let langaugeCodeForDeletion = {
+		id: 0,
+		name: 'All',
+		code: 'all'
+	};
+
+	let permissionsObject = {
+		showChapterEditIcon: false,
+		showChapterDeleteIcon: false,
+		showChapterAddIcon: false,
+		allowReorderChapter: false
+	};
 
 	$: totalVideos = chaptersData?.reduce((total, chapter) => {
-    return total + (chapter?.videos?.length || 0);
-  }, 0);
-
+		return total + (chapter?.videos?.length || 0);
+	}, 0);
 
 	$: chaptersList =
 		chaptersData?.flatMap((chapter) => {
@@ -199,6 +233,323 @@
 		chaptersData = filteredChaptersData;
 	}
 
+	// ------------------------ Video Bulk Deletion --------------------------
+
+	$: bulkVideoDeleteTextConfirmation =
+		normalizeText(deleteTextInputBulkVideo) === normalizeText(bulkDeleteConfirmationText);
+
+	$: if (chaptersList?.length > 0) {
+		chapterListForDropdown = [
+			{
+				id: 0,
+				name: 'All',
+				uuid: 'all'
+			},
+			...chaptersList
+		];
+	}
+
+	$: if (!chaptersData.error && chaptersData?.length > 0) {
+		let videos = chaptersData
+			.map((chapter) => chapter?.videos || []) // get videos or empty array
+			.flat(); // flatten the array of arrays into a single array
+		populateLanguageArray(videos);
+	}
+
+	$: languageOptionsForVideoDeletion = [
+		{ id: 0, name: 'All', code: 'all' },
+		...(languageAvailableForVideos || [])?.map((lang) => ({
+			id: lang.id,
+			name: lang.name,
+			code: lang.code
+		}))
+	];
+
+	$: bulkDeleteInfoText = (() => {
+		const chapterName = selectedChapterForVideoDeletion?.name;
+		const chapterId = Number(selectedChapterForVideoDeletion?.id);
+		const languageName = langaugeCodeForDeletion?.name
+			? langaugeCodeForDeletion.name.charAt(0).toUpperCase() +
+				langaugeCodeForDeletion.name.slice(1).toLowerCase()
+			: '';
+		const languageId = Number(langaugeCodeForDeletion?.id);
+
+		const isAllChapters = chapterId === 0;
+		const isAllLanguages = languageId === 0;
+
+		let baseMessage = '';
+
+		if (isAllChapters && isAllLanguages) {
+			baseMessage = 'All videos from all chapters will be removed.';
+		} else if (isAllChapters && !isAllLanguages) {
+			baseMessage = `All ${languageName} videos from all chapters will be removed.`;
+		} else if (!isAllChapters && isAllLanguages) {
+			baseMessage = `All videos from "${chapterName}" will be removed.`;
+		} else if (!isAllChapters && !isAllLanguages) {
+			baseMessage = `All ${languageName} videos from "${chapterName}" will be removed.`;
+		} else {
+			baseMessage = 'Please select chapter and language to proceed with deletion.';
+		}
+
+		if (deleteIntroVideo && (selectedChapterForVideoDeletion?.id == 0 ||
+     selectedChapterForVideoDeletion?.name?.toLowerCase()?.startsWith('chapter 0') ||
+     selectedChapterForVideoDeletion?.name?.toLowerCase()?.startsWith('chapter0'))) {
+			baseMessage += ' Note: Introductory video(s) will also be removed, if available.';
+		}
+
+		return baseMessage;
+	})();
+
+	$: {
+		videoBulkDeleteSelectionError = '';
+		// Only check if a specific chapter and a specific language are selected
+		if (selectedChapterForVideoDeletion?.id !== 0 && langaugeCodeForDeletion?.id !== 0) {
+			const chapter = chaptersData?.find((c) => c.uuid === selectedChapterForVideoDeletion.uuid);
+			if (chapter) {
+				const hasLanguage = chapter.videos?.some(
+					(v) => v.languageCode === langaugeCodeForDeletion.code
+				);
+				if (!hasLanguage) {
+					videoBulkDeleteSelectionError = `No videos in "${selectedChapterForVideoDeletion.name}" for language "${langaugeCodeForDeletion.name}".`;
+				}
+			}
+		}
+	}
+
+	// Available Languages Array
+	function populateLanguageArray(videos) {
+		if (videos?.length === 0) {
+			languageAvailableForVideos = [];
+		}
+		if (videos?.length > 0) {
+			languageAvailableForVideos = [];
+			let languageAvailableForVideosSet = new Set();
+			videos?.forEach((video, index) => {
+				const languageCode = video?.languageCode;
+
+				if (!languageAvailableForVideosSet?.has(video?.languageCode?.toLowerCase().trim())) {
+					languageAvailableForVideosSet.add(video?.languageCode?.toLowerCase().trim());
+					// Create an object with both language code and name
+					const languageObject = {
+						id: index + 1,
+						code: languageCode,
+						name: languageMap[languageCode] || 'Unknown'
+					};
+
+					languageAvailableForVideos?.push(languageObject);
+					languageAvailableForVideos = languageAvailableForVideos;
+				}
+			});
+
+			// Sort the languages based on the predefined order
+			languageAvailableForVideos = languageAvailableForVideos.sort((a, b) => {
+				return languageOrder.indexOf(a.languageCode) - languageOrder.indexOf(b.languageCode);
+			});
+		}
+	}
+
+	function openVideoDeletionModal() {
+		videoBulkDeletionModal = true;
+		isModalOpen = true;
+		selectedChapterForVideoDeletion = { id: 0, name: 'All', uuid: 'all' };
+		langaugeCodeForDeletion = { id: 0, name: 'All', code: 'all' };
+		deleteTextInputBulkVideo = '';
+		bulkVideoDeleteTextConfirmation = false;
+		deleteIntroVideo = false
+	}
+
+	function handleCancelVideoBulkDeletion() {
+		videoBulkDeletionModal = false;
+		isModalOpen = false;
+		deleteTextInputBulkVideo = '';
+		selectedChapterForVideoDeletion = { id: 0, name: 'All', uuid: 'all' };
+		langaugeCodeForDeletion = { id: 0, name: 'All', code: 'all' };
+		deleteIntroVideo = false
+	}
+
+	function handleVideoBulkDeletion(e) {
+		videoBulkDeletionModal = false;
+		isModalOpen = false;
+		deleteTextInputBulkVideo = '';
+
+		const targetChapterUuid = selectedChapterForVideoDeletion?.uuid;
+		const targetLanguageCode = langaugeCodeForDeletion?.code;
+
+		const isAllChapters = targetChapterUuid === 'all' || selectedChapterForVideoDeletion?.id === 0;
+		const isAllLanguages = targetLanguageCode === 'all' || langaugeCodeForDeletion?.id === 0;
+
+		let updatedChaptersData = chaptersData?.map((chapter) => {
+			let currentVideos = chapter?.videos ? [...chapter.videos] : [];
+			let videosToRemove = [];
+
+			if (isAllChapters) {
+				// Affects all chapters
+				if (isAllLanguages) {
+					// All videos from this chapter
+					videosToRemove = [...currentVideos];
+				} else {
+					// Specific language from this chapter
+					videosToRemove = currentVideos?.filter(
+						(video) => video?.languageCode === targetLanguageCode
+					);
+				}
+			} else if (chapter?.uuid === targetChapterUuid) {
+				// Affects only the selected chapter
+				if (isAllLanguages) {
+					// All videos from this specific chapter
+					videosToRemove = [...currentVideos];
+				} else {
+					// Specific language from this specific chapter
+					videosToRemove = currentVideos.filter(
+						(video) => video?.languageCode === targetLanguageCode
+					);
+				}
+			}
+
+			if (deleteIntroVideo) {
+				dispatch('introVideoRemoved', {languageCode:langaugeCodeForDeletion?.code});
+			}
+
+			if (videosToRemove.length > 0) {
+				chapter.videos = currentVideos.filter((video) => !videosToRemove.includes(video));
+				if (typeof chapter.numberOfVideos === 'number') {
+					chapter.numberOfVideos = chapter.videos.length;
+				}
+			}
+			return chapter;
+		});
+
+		chaptersData = updatedChaptersData;
+
+		// Update languageAvailableForVideos
+		const activeLanguageCodes = new Set();
+		chaptersData?.forEach((chapter) => {
+			chapter?.videos?.forEach((video) => {
+				if (video.languageCode) {
+					activeLanguageCodes?.add(video.languageCode);
+				}
+			});
+		});
+
+		// And the 'code' property matches video.languageCode
+		languageAvailableForVideos = (languageAvailableForVideos || []).filter((lang) =>
+			activeLanguageCodes.has(lang.code)
+		);
+
+		// Reset selections to default "All" after deletion
+		selectedChapterForVideoDeletion = { id: 0, name: 'All', uuid: 'all' };
+		langaugeCodeForDeletion = { id: 0, name: 'All', code: 'all' };
+		deleteIntroVideo=false;
+
+		chapterSuccessMessage.set(e.detail?.message || 'Successfully deleted the selected videos.');
+	}
+
+	function handleChapterSelection(e) {
+		selectedChapterForVideoDeletion = {
+			id: e.detail.selectedItemId - 1,
+			name: e.detail.selectedItemName,
+			uuid: e.detail.selectedItemUuid
+		};
+	}
+
+	function handleLanguageCodeForDeletion(e) {
+		langaugeCodeForDeletion = {
+			id: e.detail.selectedItemId - 1,
+			name: e.detail.selectedItemName,
+			code: e.detail.selectedOption?.code
+		};
+	}
+
+	let videoBulkDeletionApiParams = '';
+	$: {
+		const params = new URLSearchParams();
+		if (courseUuid) {
+			params.append('courseUuid', courseUuid);
+		}
+
+		if (selectedChapterForVideoDeletion?.id !== 0) {
+			params.append('chapterUuid', selectedChapterForVideoDeletion.uuid);
+		}
+		if (langaugeCodeForDeletion?.id !== 'all' && langaugeCodeForDeletion?.id !== undefined) {
+			params.append('languageCode', langaugeCodeForDeletion.code);
+		}
+		if(selectedChapterForVideoDeletion?.id == 0){
+			params.append('disassociateAboutVideo', deleteIntroVideo ? 'true' : 'false');
+		}
+
+		videoBulkDeletionApiParams = params.toString() ? `?${params.toString()}` : '';
+	}
+
+	// Compute the correct API endpoint for video bulk deletion based on user selection
+	$: videoBulkDeletionApiEndpoint = (() => {
+		const courseId = courseUuid;
+		const chapterId = selectedChapterForVideoDeletion?.uuid;
+		const languageCode = langaugeCodeForDeletion?.code;
+		const isAllChapters = chapterId === 'all' || selectedChapterForVideoDeletion?.id === 0;
+		const isAllLanguages = languageCode === 'all' || langaugeCodeForDeletion?.id === 0;
+
+		if (isAllChapters && isAllLanguages) {
+			// Delete all videos in all chapters
+			return `/apis/courses/details/videos/bulkDelete`;
+		}
+		if (isAllChapters && !isAllLanguages) {
+			// Delete all videos in all chapters by language code
+			return `/apis/courses/details/videos/bulkDelete/byLanguageCode`;
+		}
+		if (!isAllChapters && isAllLanguages) {
+			// Delete all videos in a chapter
+			return `/apis/courses/details/${courseId}/chapters/${chapterId}/videos/bulkDelete`;
+		}
+		if (!isAllChapters && !isAllLanguages) {
+			// Delete videos in chapter wrt to language code
+			return `/apis/courses/details/${courseId}/chapters/${chapterId}/videos/bulkDelete/byLanguageCode`;
+		}
+		return '';
+	})();
+
+	// ------------------------ Chapter Bulk Deletion --------------------------
+
+	$: isBulkChapterDeleteConfirmed =
+		normalizeText(deleteTextInputBulkChapter) ===
+		normalizeText(bulkChapterDeletionConfirmationText);
+
+		$:if(includeIntroVideoInChapterBulkDeletion){
+		bulkChapterDeletionApiEndpoint = `/apis/courses/details/${courseUuid}/chapters/bulkDelete?disassociateAboutVideo=${includeIntroVideoInChapterBulkDeletion === true?'true' : 'false'}`;
+		} else{
+		bulkChapterDeletionApiEndpoint = `/apis/courses/details/${courseUuid}/chapters/bulkDelete?disassociateAboutVideo=${includeIntroVideoInChapterBulkDeletion === true?'true' : 'false'}`;
+		}
+
+	function openChapterBulkDeletionModal() {
+		showChapterBulkDeletionModal = true;
+		isModalOpen = true;
+		deleteTextInputBulkChapter = '';
+		includeIntroVideoInChapterBulkDeletion=false
+		
+	}
+
+	function handleCancelChapterBulkDeletion() {
+		showChapterBulkDeletionModal = false;
+		isModalOpen = false;
+		deleteTextInputBulkChapter = '';
+		includeIntroVideoInChapterBulkDeletion=false	
+	}
+
+	async function handleConfirmChapterBulkDeletion() {
+		showChapterBulkDeletionModal = false;
+		isModalOpen = false;
+		deleteTextInputBulkChapter = '';
+
+		chaptersData = [];
+		languageAvailableForVideos = [];
+
+		if (includeIntroVideoInChapterBulkDeletion) {
+			dispatch('introVideoRemoved', {languageCode:'all'});
+		}
+
+		includeIntroVideoInChapterBulkDeletion= false
+		chapterSuccessMessage.set('Successfully deleted all the chapters.');
+	}
+
 	//---------------Drag and drop functions---------------------
 	function dragStart(event, index) {
 		// If any modal is open the drag events in the background are restricted
@@ -232,56 +583,54 @@
 		}
 	}
 
-	async function drop(event, index) { 
-    if (isModalOpen) return;
+	async function drop(event, index) {
+		if (isModalOpen) return;
 
-    let rearrangedArray = [...chaptersData]; // Clone the array
-    const draggedItem = rearrangedArray[draggedIndex];
+		let rearrangedArray = [...chaptersData]; // Clone the array
+		const draggedItem = rearrangedArray[draggedIndex];
 
-    // Remove the dragged item
-    rearrangedArray.splice(draggedIndex, 1);
+		// Remove the dragged item
+		rearrangedArray.splice(draggedIndex, 1);
 
-    // Insert the dragged item at the target index
-    rearrangedArray.splice(index, 0, draggedItem);
+		// Insert the dragged item at the target index
+		rearrangedArray.splice(index, 0, draggedItem);
 
-    // Update order numbers sequentially
-    rearrangedArray.forEach((item, idx) => {
-        item.orderNumber = idx + 1; // Assuming orderNumber is 1-based
-    });
+		// Update order numbers sequentially
+		rearrangedArray.forEach((item, idx) => {
+			item.orderNumber = idx + 1; // Assuming orderNumber is 1-based
+		});
 
-    chaptersData = rearrangedArray;
+		chaptersData = rearrangedArray;
 
-    // Prepare reordered data for API
-    const reorderedChaptersData = {
-        chapters: rearrangedArray.map(({ uuid, orderNumber }) => ({ uuid, orderNumber }))
-    };
+		// Prepare reordered data for API
+		const reorderedChaptersData = {
+			chapters: rearrangedArray.map(({ uuid, orderNumber }) => ({ uuid, orderNumber }))
+		};
 
+		try {
+			const response = await fetch(`/apis/courses/details/${courseUuid}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(reorderedChaptersData)
+			});
 
-    try {
-        const response = await fetch(`/apis/courses/details/${courseUuid}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(reorderedChaptersData)
-        });
+			if (!response.ok) throw new Error('Failed to reorder chapters');
 
-        if (!response.ok) throw new Error('Failed to reorder chapters');
+			const result = await response.json();
 
-        const result = await response.json();
+			if (!result.error) {
+				chapterSuccessMessage.set('Chapters reordered successfully.');
+			} else {
+				throw new Error('API error');
+			}
+		} catch (error) {
+			console.error(error);
+			chaptersData = [...originalChaptersData]; // Revert on failure
+			chapterErrorMessage.set('Failed to reorder chapters.');
+		}
 
-        if (!result.error) {
-            chapterSuccessMessage.set('Chapters reordered successfully.');
-        } else {
-            throw new Error('API error');
-        }
-    } catch (error) {
-        console.error(error);
-        chaptersData = [...originalChaptersData]; // Revert on failure
-        chapterErrorMessage.set('Failed to reorder chapters.');
-    }
-
-    draggedIndex = null;
-}
-
+		draggedIndex = null;
+	}
 
 	// ----------------General Functions---------------
 	// Helper function to get the title based on language code
@@ -322,7 +671,11 @@
 	}
 
 	function handleBulkUploadChapters() {
-		goto(`/courses/${courseUuid}/details/chapterBulkUpload`);
+		goto(`/courses/${courseUuid}/details/videoBulkUpload`);
+	}
+
+	function handleBulkUploadChapterTranslations() {
+		goto(`/courses/${courseUuid}/details/chapterTranslationBulkUpload`);
 	}
 
 	function handleModalOpened() {
@@ -333,33 +686,35 @@
 		isModalOpen = false;
 	}
 
-	function roleBasedAcessSetting(){
-		if(!$userDetails?.role) return
-		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES, actionNames?.EDIT_CHAPTER)){
-			permissionsObject.showChapterEditIcon=true
-		} else{
-			permissionsObject.showChapterEditIcon=false	
-
+	function roleBasedAcessSetting() {
+		if (!$userDetails?.role) return;
+		if (
+			checkActionPermission($userDetails?.role, moduleNames?.COURSES, actionNames?.EDIT_CHAPTER)
+		) {
+			permissionsObject.showChapterEditIcon = true;
+		} else {
+			permissionsObject.showChapterEditIcon = false;
 		}
-		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES, actionNames?.ADD_CHAPTER)){
-			permissionsObject.showChapterAddIcon=true	
-		} else{
-			permissionsObject.showChapterAddIcon=false	
-
+		if (checkActionPermission($userDetails?.role, moduleNames?.COURSES, actionNames?.ADD_CHAPTER)) {
+			permissionsObject.showChapterAddIcon = true;
+		} else {
+			permissionsObject.showChapterAddIcon = false;
 		}
-		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.DELETE_CHAPTER)){
-			permissionsObject.showChapterDeleteIcon=true	
-		} else{
-			permissionsObject.showChapterDeleteIcon=false	
-
+		if (
+			checkActionPermission($userDetails?.role, moduleNames?.COURSES, actionNames?.DELETE_CHAPTER)
+		) {
+			permissionsObject.showChapterDeleteIcon = true;
+		} else {
+			permissionsObject.showChapterDeleteIcon = false;
 		}
-		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.REORDER_CHAPTER)){
-			permissionsObject.allowReorderChapter=true	
-		} else{
-			permissionsObject.allowReorderChapter=false	
-
+		if (
+			checkActionPermission($userDetails?.role, moduleNames?.COURSES, actionNames?.REORDER_CHAPTER)
+		) {
+			permissionsObject.allowReorderChapter = true;
+		} else {
+			permissionsObject.allowReorderChapter = false;
 		}
-		}
+	}
 
 	onMount(() => {
 		hashRouteId = $page.url.hash ? $page.url.hash.slice(1) : '';
@@ -375,22 +730,34 @@
 			}
 		});
 
-		return () => unsubscribe(); 
-    });
-
-	onDestroy(() => {
-		chapterErrorMessage.set('')
-		chapterSuccessMessage.set('')
+		return () => unsubscribe();
 	});
 
+	onDestroy(() => {
+		chapterErrorMessage.set('');
+		chapterSuccessMessage.set('');
+	});
 </script>
 
 <h2 class="text-darkGray font-semibold mb-4">
 	Chapters ({chaptersData?.length ? chaptersData?.length : 0})
 </h2>
-<h2 class="text-darkGray font-medium text-sm  mb-2">
-	Total Videos: {totalVideos || '-'}
-</h2>
+
+<div class="flex flex-col gap-2 sm:gap-0 sm:flex-row sm:justify-between sm:items-center mb-2">
+	<h2 class="text-darkGray font-medium text-sm">
+		Total Videos: {totalVideos || '-'}
+	</h2>
+	{#if permissionsObject.showChapterAddIcon}
+		<div class="flex gap-2">
+			{#if totalVideos > 0}
+				<Button btnType="danger" on:click={openVideoDeletionModal}>Delete Videos</Button>
+			{/if}
+			{#if chaptersData.length > 0}
+				<Button btnType="danger" on:click={openChapterBulkDeletionModal}>Delete Chapters</Button>
+			{/if}
+		</div>
+	{/if}
+</div>
 
 {#if $chapterSuccessMessage}
 	<div class="mb-2">
@@ -481,12 +848,15 @@
 		{/each}
 	{/if}
 	{#if permissionsObject.showChapterAddIcon}
-	<div class="rounded-lg border-dashed border-2 border-gray-70 p-3">
-		<div class="flex gap-2">
-			<Button btnType="primary" on:click={handleAddChapterModal}>+ Add Chapter</Button>
-			<Button btnType="secondary" on:click={handleBulkUploadChapters}>Bulk Upload</Button>
+		<div class="rounded-lg border-dashed border-2 border-gray-70 p-3">
+			<div class="flex flex-wrap gap-2">
+				<Button btnType="primary" on:click={handleAddChapterModal}>+ Add Chapter</Button>
+				<Button btnType="secondary" on:click={handleBulkUploadChapters}>Bulk Upload Videos</Button>
+				<Button btnType="secondary" on:click={handleBulkUploadChapterTranslations}
+					>Bulk Upload Chapter Translation</Button
+				>
+			</div>
 		</div>
-	</div>
 	{/if}
 {:else}
 	<ErrorMessage error={'Chapters not found'} />
@@ -535,6 +905,149 @@
 				name={'deletion'}
 				labelFontWeight={'font-normal'}
 				bind:value={deleteTextInput}
+				required
+			/>
+		</div>
+	</DeletionModalViaAPI>
+{/if}
+
+{#if videoBulkDeletionModal}
+	<DeletionModalViaAPI
+		id={''}
+		name={courseTitle}
+		heading={`About to remove videos from the course`}
+		para={'Are you sure you want to remove the videos? This action cannot be undone.'}
+		endPoint={videoBulkDeletionApiEndpoint}
+		queryParams={videoBulkDeletionApiParams}
+		deleteTextConfirmation={bulkVideoDeleteTextConfirmation && !videoBulkDeleteSelectionError}
+		on:handleCancelDeletion={handleCancelVideoBulkDeletion}
+		on:handleDeletion={handleVideoBulkDeletion}
+	>
+		<div class="flex flex-col gap-4 p-6 bg-white rounded-lg border border-gray-50 my-4">
+			<!-- Course Info -->
+			<div>
+				<p class="text-sm text-darkGray capitalize mb-1">
+					<span class="font-medium">Course Title :</span>
+					{courseTitle}
+				</p>
+			</div>
+			<!-- Chapter Selection -->
+			<div>
+				<DropDown
+					on:handleDispatchFilterData={handleChapterSelection}
+					on:handleCancelSelection={() => {
+						selectedChapterForVideoDeletion = { id: 0, name: 'All', uuid: 'all' };
+					}}
+					bind:selectedItemId={selectedChapterForVideoDeletion.id}
+					bind:selectedItemName={selectedChapterForVideoDeletion.name}
+					options={chapterListForDropdown || []}
+					type={'chapterDropdown'}
+					title={'Select Chapter'}
+				/>
+			</div>
+			<!-- Language Code Selection -->
+			<div>
+				<DropDown
+					on:handleDispatchFilterData={handleLanguageCodeForDeletion}
+					on:handleCancelSelection={() => {
+						langaugeCodeForDeletion = { id: 0, name: 'All', code: 'all' };
+					}}
+					bind:selectedItemId={langaugeCodeForDeletion.id}
+					bind:selectedItemName={langaugeCodeForDeletion.name}
+					options={languageOptionsForVideoDeletion || []}
+					type={'language drop down'}
+					title={'Select Language'}
+				/>
+			</div>
+
+			{#if selectedChapterForVideoDeletion?.id == 0}
+				<div class="flex items-center gap-2">
+					<input
+						type="checkbox"
+						id="deleteIntro"
+						bind:checked={deleteIntroVideo}
+						class="accent-red-600 w-3 h-3"
+						disabled={selectedChapterForVideoDeletion?.id !== 0 
+    }
+					/>
+					<label for="deleteIntro" class="text-xs text-darkGray">
+						Delete Course Introductory Video
+					</label>
+				</div>
+			{/if}
+
+			{#if videoBulkDeleteSelectionError}
+				<p class="text-xs italic text-red-600">{videoBulkDeleteSelectionError}</p>
+			{:else}
+				<p class="text-xs italic text-red-600">{bulkDeleteInfoText}</p>
+			{/if}
+		</div>
+		<!-- Confirmation Input -->
+		<div>
+			<InputField
+				label={`Type '${bulkDeleteConfirmationText}' to confirm`}
+				placeholder={`Type '${bulkDeleteConfirmationText}'`}
+				name={'deletion'}
+				labelFontWeight={'font-normal'}
+				bind:value={deleteTextInputBulkVideo}
+				required
+			/>
+		</div>
+	</DeletionModalViaAPI>
+{/if}
+
+{#if showChapterBulkDeletionModal}
+	<DeletionModalViaAPI
+		id={``}
+		name={`all chapters for ${courseTitle}`}
+		heading={`About to delete all chapters for the course - ${courseTitle}`}
+		para={'Are you sure you want to delete all the chapters? This action cannot be undone and will remove all associated videos as well.'}
+		endPoint={bulkChapterDeletionApiEndpoint}
+		queryParams={``}
+		deleteTextConfirmation={isBulkChapterDeleteConfirmed}
+		on:handleCancelDeletion={handleCancelChapterBulkDeletion}
+		on:handleDeletion={handleConfirmChapterBulkDeletion}
+	>
+		<!-- Scrollable section with better spacing -->
+		<div
+			class="flex flex-col gap-4 p-6 bg-white rounded-lg border border-gray-50 my-4 max-h-64 overflow-y-auto"
+		>
+			<p class="text-sm text-darkGray">The following chapters will be permanently deleted:</p>
+			{#if chaptersData && chaptersData?.length > 0}
+				<ul class="space-y-2 text-sm text-darkGray">
+					{#each chaptersData as chapter (chapter.uuid)}
+						<li class="flex items-start justify-between p-3 rounded-md border border-gray-200">
+							<span class="font-medium truncate text-sm">
+								{getTranslation(chapter.translations, 'en') || 'Untitled Chapter'}
+							</span>
+							<span class="text-gray-500 text-xs whitespace-nowrap">
+								({chapter.videos?.length || 0} video{chapter.videos?.length !== 1 ? 's' : ''})
+							</span>
+						</li>
+					{/each}
+				</ul>
+				<div class="flex items-center gap-2">
+					<input
+						type="checkbox"
+						id="deleteIntro"
+						bind:checked={includeIntroVideoInChapterBulkDeletion}
+						class="accent-red-600 w-3 h-3"
+					/>
+					<label for="deleteIntro" class="text-xs text-darkGray">
+						Delete Course Introductory Videos
+					</label>
+				</div>
+			{:else}
+				<p class="text-sm text-gray-500 italic">No chapters to display.</p>
+			{/if}
+		</div>
+		<div>
+			<InputField
+				label={`Type '${bulkChapterDeletionConfirmationText}' to confirm`}
+				placeholder={`Type '${bulkChapterDeletionConfirmationText}'`}
+				name={'bulkChapterDeletionConfirm'}
+				labelFontWeight={'font-normal'}
+				bind:value={deleteTextInputBulkChapter}
 				required
 			/>
 		</div>

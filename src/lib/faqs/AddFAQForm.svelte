@@ -71,12 +71,12 @@
 	function handleSuccess(method) {
 		if (method === 'POST') {
 			goto('/FAQs', { invalidateAll: true });
-			message.set('FAQ added successfully');
+			message.set('Successfully added FAQ.');
 		}
 
 		if (method === 'PUT') {
 			goto('/FAQs', { invalidateAll: true });
-			message.set('FAQ edited successfully!');
+			message.set('Successfully edited FAQ details.');
 		}
 	}
 
@@ -126,7 +126,6 @@
 			// `result` is an `ActionResult` object
 
 			if (search == '?/final') {
-				console.log('result', result);
 
 				if (result.type == 'success') {
 					handleSuccess(method);
@@ -299,9 +298,9 @@
 							<h3 class=" font-medium mb-4 mt-2 text-primary">Language-wise FAQ Details</h3>
 
 							<!-- English Details -->
-							<div class="mb-2">
+							<div class="mb-3">
 								<h4 class="text-base font-semibold mb-2">English</h4>
-								<div class="space-y-1">
+								<div class="space-y-3">
 									<p class="text-sm font-medium">{formObject?.questionEn ?? '-'}</p>
 									<p class="text-sm">{formObject?.answerEn ?? '-'}</p>
 									<p class="text-sm">
@@ -314,8 +313,8 @@
 							<hr class="space-y-4 horizontal-line" />
 							<!-- Hindi Details -->
 							<div>
-								<h4 class="text-base font-semibold mb-2 mt-2">Hindi</h4>
-								<div class="space-y-1">
+								<h4 class="text-base font-semibold mb-2 mt-3">Hindi</h4>
+								<div class="space-y-3">
 									<p class="text-sm font-medium">
 										{formObject?.questionHi ? formObject?.questionHi : 'Question: -'}
 									</p>
@@ -331,7 +330,7 @@
 									{#if getMatchingCategory()}
 										<p class="text-sm">
 											<span class="label">Category Name :</span>
-											{getMatchingCategory().category}
+											{getMatchingCategory()?.category || '-'}
 										</p>
 									{/if}
 								</div>

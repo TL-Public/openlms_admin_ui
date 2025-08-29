@@ -67,6 +67,9 @@
 							<p class="text-sm">
 								<span class="label">Designation</span>: {selectedTranslation?.designation ?? '-'}
 							</p>
+							<p class="text-sm">
+								<span class="label">Priority No</span>: {testimonialDetails?.orderNo ?? '-'}
+							</p>
 						</div>
 					</div>
 					<div class="grid grid-cols-1 sm:grid-cols-1 gap-1">

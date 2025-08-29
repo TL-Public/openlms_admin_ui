@@ -109,7 +109,7 @@
 	});
 </script>
 
-<div class="relative z-10" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+<div class="relative z-[99]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
 	<div
 		class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity pointer-events-none"
 		aria-hidden="true"
@@ -134,7 +134,7 @@
 				{/if}
 				<div class="text-darkGray">
 					<div class="flex gap-1 items-center">
-						<Book stroke={'#FF6A1F'} />
+						<Book stroke={'#206FC9'} />
 
 						<h2 class=" font-semibold text-primary">Edit Chapter Details</h2>
 					</div>

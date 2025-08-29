@@ -20,7 +20,8 @@
 	let permissionsObject ={
 	allowVideoMove : false,
 	allowVideoDeletion: false,
-	allowVideoEdit:false
+	allowVideoEdit:false,
+	allowShowQuiz:false
 	}
 
 
@@ -55,6 +56,12 @@
 			permissionsObject.allowVideoEdit=true	
 		} else{
 			permissionsObject.allowVideoEdit=false	
+
+		}
+		if(checkActionPermission($userDetails?.role, moduleNames?.COURSES,actionNames?.VIEW_QUIZ)){
+			permissionsObject.allowShowQuiz=true	
+		} else{
+			permissionsObject.allowShowQuiz=false	
 
 		}
 		}
@@ -97,12 +104,14 @@
 				<span class="text-xs line-clamp-3 break-words mb-2" title={video?.description}
 				  >{video?.description}</span
 				>
+				{#if permissionsObject?.allowShowQuiz}
 				<div
 				class="text-xs line-clamp-1 break-words cursor-pointer text-blue-600 hover:underline"
 				title="view quiz"
 				on:click|stopPropagation|preventDefault={(e) => handleShowQuiz(video?.uuid, e)}
 			> View Quiz
 			</div>
+			{/if}
 			  </div>
 
 			  <div class="flex flex-col gap-2">

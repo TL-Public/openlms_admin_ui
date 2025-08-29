@@ -1,5 +1,13 @@
 import { redirect, fail } from '@sveltejs/kit';
 
+export async function load({ cookies }) {
+	const authToken = cookies.get('authToken');
+	
+	return {
+		authToken: authToken && authToken !== undefined ?true:false
+	};
+}
+
 export const actions = {
 	default: async ({ request, fetch, cookies }) => {
 		const formData = await request.formData();

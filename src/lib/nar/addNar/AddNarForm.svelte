@@ -159,6 +159,8 @@
 					label={'Phone Number 1'}
 					placeholder={'Enter phone number'}
 					name={'phoneno1'}
+					type="number"
+					min="0"
 					bind:value={formObject.phoneno1}
 					required
 				/>
@@ -168,6 +170,7 @@
 					placeholder={'Enter phone number'}
 					name={'phoneno2'}
 					type="number"
+					min="0"
 					bind:value={formObject.phoneno2}
 					required
 				/>

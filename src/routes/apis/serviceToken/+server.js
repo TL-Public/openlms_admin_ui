@@ -7,12 +7,12 @@ export async function POST({ cookies }) {
 	}
 
 	try {
-		const serviceToken = cookies.get('serviceToken');
+		// const serviceToken = cookies.get('serviceToken');
 		const clientKey = cookies.get('clientKey');
 		const clientId = cookies.get('clientId');
-		if(serviceToken){
-			return json({ serviceToken }, { status: 200 });
-		}
+		// if(serviceToken){
+		// 	return json({ serviceToken }, { status: 200 });
+		// }
 		// Call the external API to generate a service token
 		const response = await fetch(
 			'http://qmsapi.ap-south-1.elasticbeanstalk.com/apis/v1/service-auth/token',

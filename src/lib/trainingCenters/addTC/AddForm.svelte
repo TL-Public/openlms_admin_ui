@@ -19,6 +19,7 @@
 	import {showLoadingSpinner} from '/src/routes/store.js'
 	import { userDetails } from '/src/routes/store.js';
 
+
 	let saved = false;
 	let validationErrors = {};
 	let creationError = '';
@@ -239,19 +240,19 @@
 				if (result.type == 'success') {
 					if (method === 'POST') {
 						goto(`/trainingCenters`, { invalidateAll: true });
-						message.set(`Successfully added training center "${tcObject.nameEnglish}"! `);
+						message.set(`Successfully added training center "${tcObject.nameEnglish}". `);
 					}
 					if (method === 'PUT') {
 						goto(`/trainingCenters`, { invalidateAll: true });
-						message.set(`Successfully edited training center "${tcObject.nameEnglish}"!`);
+						message.set(`Successfully edited training center "${tcObject.nameEnglish}".`);
 					}
 				}
 
 				if (result.type == 'failure') {
 					const errorMsg =
 						method === 'PUT'
-							? 'Failed to update training center. Please try again!'
-							: 'Failed to add training center. Please try again!';
+							? 'Failed to update training center. Please try again.'
+							: 'Failed to add training center. Please try again.';
 
 					try {
 						const { data } = result.data;
@@ -405,8 +406,8 @@
 							label={'Select bank'}
 							filterCategory={'courseListing'}
 							placeholder={'Select sponsor bank'}
-							bind:selectedItemName={tcObject.bankName}
-							bind:selectedItemId={tcObject.bankId}
+							selectedItemName={tcObject.bankName}
+							selectedItemId={tcObject.bankId}
 							on:handleDispatchComboBoxData={handleBankId}
 							on:handleDispatchFilterData={handleBankClearFilter}
 						/>
@@ -418,6 +419,7 @@
 					<InputField
 						label={'Phone Number'}
 						type="number"
+						min="0"
 						name="phoneNumber"
 						placeholder={'Enter Phone Number'}
 						bind:value={tcObject.contactNo}
@@ -442,8 +444,8 @@
 							label={'Select state'}
 							filterCategory={'stateListing'}
 							placeholder={'Select state of Training Center'}
-							bind:selectedItemName={tcObject.stateName}
-							bind:selectedItemId={tcObject.stateId}
+							selectedItemName={tcObject.stateName}
+							selectedItemId={tcObject.stateId}
 							on:handleDispatchComboBoxData={handleStateId}
 							on:handleDispatchFilterData={handleStateClearFilter}
 							disabled={stateUserRoleIds?.includes(Number($userDetails?.role))}
@@ -456,6 +458,7 @@
 						label={"Director's phone no."}
 						placeholder={"Enter Director's phone no."}
 						type="number"
+						min="0"
 						name={'directorsPhone'}
 						bind:value={tcObject.directorContactNo}
 					/>
@@ -465,8 +468,8 @@
 							label={'Select district'}
 							filterCategory={'districtList'}
 							placeholder={'Select district'}
-							bind:selectedItemId={tcObject.districtId}
-							bind:selectedItemName={tcObject.districtName}
+							selectedItemId={tcObject.districtId}
+							selectedItemName={tcObject.districtName}
 							on:handleDispatchComboBoxData={handleDistrictSelection}
 							on:handleDispatchFilterData={handleDistrictClearFilter}
 						/>

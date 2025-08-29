@@ -1,6 +1,13 @@
 import { String_Constants } from '/src/config/constants.js';
+import { userDetails } from '/src/routes/store.js';
+import { browser } from '$app/environment';
 
-export async function load({ fetch }) {
+export async function load({ fetch, parent }) {
+
+	if (browser) {
+		const { user } = await parent();
+		userDetails?.set(user);
+	}
 	const fetchRsetiDetails = async () => {
 		try {
 			const res = await fetch(`/apis/rsetis`);

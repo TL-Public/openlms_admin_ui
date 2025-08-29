@@ -13,6 +13,7 @@
 	import { handleRedirection } from '$lib/utils/helper.js';
 	import { page } from '$app/stores';
 	import {showLoadingSpinner} from '/src/routes/store.js'
+	import PriorityPopUp from './PriorityPopUp.svelte';
 
 
 	export let route;
@@ -20,6 +21,7 @@
 		nameEn: '',
 		designationEn: '',
 		testimonialTextEn: '',
+		orderNo:null,
 		nameHi: '',
 		designationHi: '',
 		testimonialTextHi: '',
@@ -37,6 +39,7 @@
 	let displayImage = null;
 	let sizeErrorMessage = '';
 	let imageUploadInputRef;
+	let showPriorityPopUp = false
 	const maxFileSizeInIntegers = 1;
 	const maxFileSize = 0.5 * 1024 * 1024;
 	const url = $page.url;
@@ -200,6 +203,14 @@
 		displayImage = URL.createObjectURL(imageFile);
 	}
 
+	function handlePriorityPopUp(){
+		showPriorityPopUp=true
+	}
+
+	function closePriorityPopup(){
+		showPriorityPopUp=false
+	}
+
 	function handleGoBack() {
 		window.history.back();
 	}
@@ -292,9 +303,22 @@
 						{/each}
 					</div>
 				</div>
+				<div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-2 gap-2 lg:gap-20">
+				<InputField
+				label="Priority Number"
+				placeholder="Enter Priority number"
+				name="orderNo"
+				type="number"
+				bind:value={formObject.orderNo}
+				required
+			/>
+		</div>
+		<div on:click={handlePriorityPopUp} class="text-xs text-blue-500 hover:underline mt-2">
+			View priority number of other testimonials
+		</div>
 
 				{#if formObject.type === 'video'}
-					<div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-4 gap-2 lg:gap-20">
+					<div class="grid grid-cols-1 lg:grid-cols-2 items-end mb-4 gap-2 lg:gap-20 mt-2">
 						<InputField
 							label="Video URL"
 							placeholder="Enter video URL"
@@ -402,6 +426,12 @@
 							/>
 						</div>
 						<div class="flex-grow">
+							<div class="flex items-center space-x-2 mb-2">
+								<span class="label">Priority Number:</span>
+								<p class="text-sm  ">
+										{formObject?.orderNo ?? '-'}
+								</p>
+							</div>
 							<!-- <h3 class=" font-medium mb-4 mt-2">Language-wise testimonial Details</h3> -->
 							{#if formObject.type === 'video'}
 								<!-- <p class="text-sm text-blue-600 hover:underline mb-2">
@@ -422,8 +452,8 @@
 										</a>
 									</p>
 								</div>
+								{/if}
 								<hr class="my-4 horizontal-line" />
-							{/if}
 
 							<!-- English Details -->
 							<div class="mb-2">
@@ -491,3 +521,8 @@
 		</div>
 	</form>
 </div>
+
+{#if showPriorityPopUp}
+<PriorityPopUp 
+on:close={closePriorityPopup}/>	
+{/if}

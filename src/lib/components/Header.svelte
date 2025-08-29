@@ -52,15 +52,17 @@
 </script>
 
 <header
-	class=" h-16 sticky top-0 sm:h-20 py-2 px-4 flex justify-between lg:py-2 lg:px-20 items-center bg-offwhite text-darkGray shadow-md w-full z-10"
+	class=" h-16 sticky top-0 sm:h-20 py-2 px-4 flex justify-between lg:py-2 lg:px-20 items-center bg-ivory text-darkGray shadow-md w-full z-[90]"
 >
 	<div on:click={handleLogoClick}>
 		<a href="/">
-			<span class="sr-only">Edureach Logo</span>
-
-			<h1 class="flex items-center justify-center ">
-			<img src="/eduReachSmallLogo.svg" alt="" class="h-6 md:h-6 lg:h-8 ">
-			</h1>
+			<span class="sr-only">Reap Logo</span>
+			<div class="hidden sm:block">
+				<ReapLogo />
+			</div>
+			<div class="sm:hidden">
+				<ReapLogoMobile />
+			</div>
 		</a>
 	</div>
 	<!-- Desktop Header Menu Items -->
@@ -74,7 +76,7 @@
 				on:click|stopPropagation={() => (showProfilePopup = !showProfilePopup)}
 			>
 				<div
-					class="flex items-center justify-center w-8 h-8 bg-secondary font-medium text-white capitalize text-xl rounded-full leading-none m-0 p-0"
+					class="flex items-center justify-center w-8 h-8 bg-accent font-medium text-white capitalize text-xl rounded-full leading-none m-0 p-0"
 				>
 					{$userDetails?.name ? $userDetails.name[0] : ''}
 				</div>
