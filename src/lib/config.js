@@ -2,6 +2,7 @@ import { menuItems } from '$lib/data.js';
 export const BASE_URL = import.meta.env.VITE_BASE_URL;
 export const QMS_URL = import.meta.env.VITE_QMS_URL;
 export const HOST_URL = import.meta.env.VITE_HOST_URL;
+export const ANALYTICS_URL = import.meta.env.VITE_ANALYTICS_URL;
 
 export const roles = {
 	// Super Admin
