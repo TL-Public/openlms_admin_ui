@@ -1,5 +1,6 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
 	import { browser } from '$app/environment';
 
 	let playerContainer;
@@ -10,6 +11,7 @@
 	export let videoId = '';
 
 	let PlayerComponent;
+	const dispatch = createEventDispatcher();
 
 	// Load YouTube Player script
 	async function loadYouTubePlayerComponent() {
@@ -42,15 +44,34 @@
 
 		youtubePlayerInstance = new PlayerComponent({
 			target: playerContainer,
-			props: { videoId: id, autoplay: false }
+			props: { videoId: id, autoplay: false, enableAnalytics: false }
 		});
 
-		// Attach listeners
-		youtubePlayerInstance.$on('ready', () => console.log('YouTube player ready'));
-		youtubePlayerInstance.$on('statechange', (e) => console.log('Player state:', e.detail.state));
-		youtubePlayerInstance.$on('error', (e) => console.error('Player error:', e.detail));
-		youtubePlayerInstance.$on('like', (e) => console.log('Like event:', e.detail));
-		youtubePlayerInstance.$on('metadata', (e) => console.log('Metadata:', e.detail));
+		// Attach listeners and dispatch to parent
+		youtubePlayerInstance.$on('ready', (e) => {
+			console.log('YouTube player ready');
+			dispatch('ready', e.detail);
+		});
+		
+		youtubePlayerInstance.$on('statechange', (e) => {
+			console.log('Player state:', e.detail.state);
+			dispatch('statechange', e.detail);
+		});
+		
+		youtubePlayerInstance.$on('error', (e) => {
+			console.error('Player error:', e.detail);
+			dispatch('error', e.detail);
+		});
+		
+		youtubePlayerInstance.$on('like', (e) => {
+			console.log('Like event:', e.detail);
+			dispatch('like', e.detail);
+		});
+		
+		youtubePlayerInstance.$on('metadata', (e) => {
+			console.log('Metadata:', e.detail);
+			dispatch('metadata', e.detail);
+		});
 	}
 
 	// Load component and create player on mount
